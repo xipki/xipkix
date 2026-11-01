@@ -6,9 +6,9 @@ package org.xipki.pkix.scep.message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xipki.codec.util.Args;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.pkix.scep.transaction.CaCapability;
 import org.xipki.pkix.util.misc.CollectionUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;

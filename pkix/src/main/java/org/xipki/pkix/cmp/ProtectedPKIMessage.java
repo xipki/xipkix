@@ -4,6 +4,9 @@
 package org.xipki.pkix.cmp;
 
 import org.xipki.codec.asn1.Asn1BitString;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.ContentVerifier;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.pkix.asn1.cmp.CMPCertificate;
 import org.xipki.pkix.asn1.cmp.InfoTypeAndValue;
 import org.xipki.pkix.asn1.cmp.PBMParameter;
@@ -13,15 +16,13 @@ import org.xipki.pkix.asn1.cmp.PKIHeader;
 import org.xipki.pkix.asn1.cmp.PKIMessage;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.oid.CmpOIDs;
-import org.xipki.pkix.asn1.util.ContentSigner;
-import org.xipki.pkix.asn1.util.ContentVerifier;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.pkix.asn1.x509.GeneralName;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.api.CryptoApi;
 import org.xipki.crypto.api.CryptoApiFactory;
+import org.xipki.pkix.exception.PkixException;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -81,15 +82,15 @@ public class ProtectedPKIMessage {
    * Verifies the signature-based protection.
    * @param verifierProvider the provider of the signature verifier.
    * @return true if the signature is valid, false otherwise.
-   * @throws CmpException if the signature cannot be verified.
+   * @throws PkixException if the signature cannot be verified.
    */
-  public boolean verify(ContentVerifierProvider verifierProvider) throws CmpException {
+  public boolean verify(ContentVerifierProvider verifierProvider) throws PkixException {
     try {
       ContentVerifier verifier = verifierProvider.get(protectionAlg());
       return verifier.atomicVerify(protectedPart(pkiMessage.getHeader(), pkiMessage.getBody()),
           pkiMessage.protection());
     } catch (Exception e) {
-      throw new CmpException("unable to verify signature: " + e.getMessage(), e);
+      throw new PkixException("unable to verify signature: " + e.getMessage(), e);
     }
   }
 
@@ -97,10 +98,10 @@ public class ProtectedPKIMessage {
    * Verifies the password-based MAC protection.
    * @param password the password.
    * @return true if the MAC is valid, false otherwise.
-   * @throws CmpException if the MAC cannot be verified, or the iteration count exceeds
+   * @throws PkixException if the MAC cannot be verified, or the iteration count exceeds
    *         {@link #DFLT_MAX_PBM_ITERATION_COUNT}.
    */
-  public boolean verify(char[] password) throws CmpException {
+  public boolean verify(char[] password) throws PkixException {
     return verify(password, DFLT_MAX_PBM_ITERATION_COUNT);
   }
 
@@ -111,29 +112,29 @@ public class ProtectedPKIMessage {
    *        PBMParameter.iterationCount is rejected, since the hash is computed iterationCount
    *        times before the MAC can be verified.
    * @return true if the MAC is valid, false otherwise.
-   * @throws CmpException if the MAC cannot be verified, or the iteration count exceeds
+   * @throws PkixException if the MAC cannot be verified, or the iteration count exceeds
    *         maxIterationCount.
    */
-  public boolean verify(char[] password, int maxIterationCount) throws CmpException {
+  public boolean verify(char[] password, int maxIterationCount) throws PkixException {
     AlgorithmIdentifier protectionAlg = protectionAlg();
     if (!CmpOIDs.passwordBasedMac.equals(protectionAlg.getAlgorithm())) {
-      throw new CmpException("protection algorithm is not passwordBasedMac");
+      throw new PkixException("protection algorithm is not passwordBasedMac");
     }
 
     PBMParameter params;
     try {
       params = PBMParameter.fromAsn1(protectionAlg.getParameters().asSequence());
     } catch (CodecException | RuntimeException e) {
-      throw new CmpException("invalid PBMParameter: " + e.getMessage(), e);
+      throw new PkixException("invalid PBMParameter: " + e.getMessage(), e);
     }
 
     if (params.iterationCount() < MIN_PBM_ITERATION_COUNT) {
-      throw new CmpException("PBMParameter.iterationCount " + params.iterationCount()
+      throw new PkixException("PBMParameter.iterationCount " + params.iterationCount()
           + " is less than the minimal " + MIN_PBM_ITERATION_COUNT);
     }
 
     if (params.iterationCount() > maxIterationCount) {
-      throw new CmpException("PBMParameter.iterationCount " + params.iterationCount()
+      throw new PkixException("PBMParameter.iterationCount " + params.iterationCount()
           + " exceeds the maximal " + maxIterationCount);
     }
 
@@ -157,7 +158,7 @@ public class ProtectedPKIMessage {
    * Calculates the password-based MAC (RFC 4210, section 5.1.3.1).
    */
   private static byte[] calculatePbmac(PBMParameter params, char[] password, byte[] data)
-      throws CmpException {
+      throws PkixException {
     Args.notNull(password, "password");
     ByteBuffer pwBuf = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password));
     byte[] pw = Arrays.copyOfRange(pwBuf.array(), pwBuf.position(), pwBuf.limit());
@@ -179,7 +180,7 @@ public class ProtectedPKIMessage {
       mac.init(new SecretKeySpec(key, mac.getAlgorithm()));
       return mac.doFinal(data);
     } catch (GeneralSecurityException | RuntimeException e) {
-      throw new CmpException("could not calculate the password-based MAC: "
+      throw new PkixException("could not calculate the password-based MAC: "
           + e.getMessage(), e);
     } finally {
       Arrays.fill(key, (byte) 0);
@@ -262,9 +263,9 @@ public class ProtectedPKIMessage {
      * @param params the PBM parameters.
      * @param password the password.
      * @return the protected message.
-     * @throws CmpException if the MAC cannot be calculated.
+     * @throws PkixException if the MAC cannot be calculated.
      */
-    public ProtectedPKIMessage build(PBMParameter params, char[] password) throws CmpException {
+    public ProtectedPKIMessage build(PBMParameter params, char[] password) throws PkixException {
       Args.notNull(params, "params");
       finaliseHeader(AlgorithmIdentifier.build(CmpOIDs.passwordBasedMac, params));
       byte[] mac = calculatePbmac(params, password, protectedPart(header, body));
@@ -275,16 +276,16 @@ public class ProtectedPKIMessage {
      * Builds the message protected by signature.
      * @param signer the signer.
      * @return the protected message.
-     * @throws CmpException if the signature cannot be calculated.
+     * @throws PkixException if the signature cannot be calculated.
      */
-    public ProtectedPKIMessage build(ContentSigner signer) throws CmpException {
+    public ProtectedPKIMessage build(ContentSigner signer) throws PkixException {
       Args.notNull(signer, "signer");
       finaliseHeader(signer.getAlgorithmIdentifier());
       try {
         byte[] signature = signer.atomicSign(protectedPart(header, body));
         return finaliseMessage(new Asn1BitString(signature));
       } catch (SignatureException e) {
-        throw new CmpException("unable to sign: " + e.getMessage(), e);
+        throw new PkixException("unable to sign: " + e.getMessage(), e);
       }
     }
 

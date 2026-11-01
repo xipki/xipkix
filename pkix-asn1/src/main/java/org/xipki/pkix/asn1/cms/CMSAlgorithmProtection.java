@@ -52,7 +52,7 @@ public class CMSAlgorithmProtection extends Asn1Encodable {
     } else if (tagNo == 2) {
       macAlgorithm = AlgorithmIdentifier.fromAsn1(t.getImplicitSequenceBase());
     } else {
-      throw CodecException.SEQ_WITH_UNEXPECTED_ELEMENTS;
+      throw CodecException.seqWithUnexpectedElements();
     }
 
     return new CMSAlgorithmProtection(digestAlgorithm, signatureAlgorithm, macAlgorithm);

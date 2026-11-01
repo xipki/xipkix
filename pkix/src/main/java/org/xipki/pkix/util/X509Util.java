@@ -5,24 +5,16 @@ package org.xipki.pkix.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xipki.codec.asn1.AbstractAsn1String;
-import org.xipki.codec.asn1.Asn1BmpString;
-import org.xipki.codec.asn1.Asn1Encodable;
-import org.xipki.codec.asn1.Asn1IA5String;
-import org.xipki.codec.asn1.Asn1Oid;
-import org.xipki.codec.asn1.Asn1Primitive;
-import org.xipki.codec.asn1.Asn1PrintableString;
-import org.xipki.codec.asn1.Asn1Utf8String;
+import org.xipki.codec.asn1.*;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
-import org.xipki.codec.asn1.Time;
 import org.xipki.codec.asn1.oid.AttributeOIDs;
 import org.xipki.codec.asn1.oid.ExtensionOIDs;
 import org.xipki.codec.asn1.oid.SpdmOIDs;
 import org.xipki.codec.asn1.oid.TcgOIDs;
 import org.xipki.codec.asn1.oid.X509OIDs;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.pkix.asn1.pkcs10.CertificationRequest;
 import org.xipki.pkix.asn1.spdm.DmtfDeviceInfo;
-import org.xipki.pkix.asn1.util.IETFUtils;
 import org.xipki.pkix.asn1.x500.AttributeTypeAndValue;
 import org.xipki.pkix.asn1.x500.RDN;
 import org.xipki.pkix.asn1.x500.X500Name;
@@ -32,8 +24,7 @@ import org.xipki.codec.Base64;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.codec.Hex;
 import org.xipki.crypto.core.KeySpec;
-import org.xipki.codec.asn1.Asn1StreamParser;
-import org.xipki.pkix.exception.BadInputException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.crypto.core.XiSecurityException;
 import org.xipki.crypto.core.pem.PemObject;
 import org.xipki.crypto.core.pem.PemReader;
@@ -49,7 +40,6 @@ import org.xipki.pkix.util.misc.PemEncoder;
 import org.xipki.pkix.util.misc.PemEncoder.PemLabel;
 import org.xipki.pkix.util.conf.FileOrBinary;
 import org.xipki.codec.util.IoUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -283,7 +273,9 @@ public class X509Util {
   }
 
   public static String x500NameText(X500Name name) {
-    return notNull(name, "name").toString();
+    StringBuilder buf = new StringBuilder(20);
+    notNull(name, "name").toString(buf, 0);
+    return buf.toString();
   }
 
   public static long fpCanonicalizedName(X500Name name) {
@@ -314,11 +306,11 @@ public class X509Util {
         if (rdn.isMultiValued()) {
           for (AttributeTypeAndValue atv : rdn) {
             if (type.equals(atv.getType().getId())) {
-              values.add(IETFUtils.valueToString(atv.getValue()).toLowerCase());
+              values.add(valueToString(atv.getValue()).toLowerCase());
             }
           }
         } else {
-          values.add(IETFUtils.valueToString(rdn.getFirst().getValue()).toLowerCase());
+          values.add(valueToString(rdn.getFirst().getValue()).toLowerCase());
         }
       } // end for(j)
 
@@ -585,7 +577,7 @@ public class X509Util {
   }
 
   public static Extension createExtnSubjectAltName(List<String> taggedValues, boolean critical)
-      throws BadInputException {
+      throws PkixException {
     GeneralNames names = createGeneralNames(taggedValues);
     if (names == null) {
       return null;
@@ -595,7 +587,7 @@ public class X509Util {
   } // method createExtnSubjectAltName
 
   public static Extension createExtnSubjectInfoAccess(
-      List<String> accessMethodAndLocations, boolean critical) throws BadInputException {
+      List<String> accessMethodAndLocations, boolean critical) throws PkixException {
     if (CollectionUtil.isEmpty(accessMethodAndLocations)) {
       return null;
     }
@@ -610,17 +602,17 @@ public class X509Util {
   } // method createExtnSubjectInfoAccess
 
   private static AccessDescription createAccessDescription(String accessMethodAndLocation)
-      throws BadInputException {
+      throws PkixException {
     ConfPairs pairs;
     try {
       pairs = new ConfPairs(notNull(accessMethodAndLocation, "accessMethodAndLocation"));
     } catch (IllegalArgumentException ex) {
-      throw new BadInputException("invalid accessMethodAndLocation " + accessMethodAndLocation);
+      throw new PkixException("invalid accessMethodAndLocation " + accessMethodAndLocation);
     }
 
     Set<String> oids = pairs.names();
     if (oids == null || oids.size() != 1) {
-      throw new BadInputException("invalid accessMethodAndLocation " + accessMethodAndLocation);
+      throw new PkixException("invalid accessMethodAndLocation " + accessMethodAndLocation);
     }
 
     String accessMethodS = oids.iterator().next();
@@ -632,7 +624,7 @@ public class X509Util {
   } // method createAccessDescription
 
   private static GeneralNames createGeneralNames(List<String> taggedValues)
-      throws BadInputException {
+      throws PkixException {
     if (CollectionUtil.isEmpty(taggedValues)) {
       return null;
     }
@@ -650,10 +642,10 @@ public class X509Util {
   * @param taggedValue [tag]value, and the value for tags otherName and
    *       ediPartyName is type=value.
   * @return the created {@link GeneralName}
-  * @throws BadInputException
+  * @throws PkixException
   *         if the {@code taggedValue} is invalid.
   */
-  private static GeneralName createGeneralName(String taggedValue) throws BadInputException {
+  private static GeneralName createGeneralName(String taggedValue) throws PkixException {
     String tagS = null;
     String value = null;
     if (Args.notBlank(taggedValue, "taggedValue").charAt(0) == '[') {
@@ -669,12 +661,12 @@ public class X509Util {
     switch (tag) {
       case GeneralName.tag_otherName: {
         if (value == null) {
-          throw new BadInputException("invalid otherName: null");
+          throw new PkixException("invalid otherName: null");
         }
 
         int idxSep = value.indexOf("=");
         if (idxSep == -1 || idxSep == 0 || idxSep == value.length() - 1) {
-          throw new BadInputException("invalid otherName " + value);
+          throw new PkixException("invalid otherName " + value);
         }
 
         String otherTypeOid = value.substring(0, idxSep);
@@ -705,27 +697,27 @@ public class X509Util {
           try {
             on = OtherName.ofMacAddress(Hex.decode(otherValue));
           } catch (CodecException e) {
-            throw new BadInputException("invalid MACAddress: '" + otherValue + "'", e);
+            throw new PkixException("invalid MACAddress: '" + otherValue + "'", e);
           }
         } else if (type.equals(X509OIDs.id_on_SmtpUTF8Mailbox)) {
           try {
             on = OtherName.ofSmtpUTF8Mailbox(otherValue);
           } catch (CodecException e) {
-            throw new BadInputException("invalid SmtpUTF8Mailbox: '" + otherValue + "'", e);
+            throw new PkixException("invalid SmtpUTF8Mailbox: '" + otherValue + "'", e);
           }
         } else if (type.equals(SpdmOIDs.id_DMTF_device_info)) {
           try {
             on = OtherName.ofDmtfDeviceInfo(new DmtfDeviceInfo(otherValue));
           } catch (CodecException e) {
-            throw new BadInputException("invalid DMTF device info: '" + otherValue + "'", e);
+            throw new PkixException("invalid DMTF device info: '" + otherValue + "'", e);
           }
         } else if (type.equals(ExtensionOIDs.id_microsoft_objectSid)) {
           on = OtherName.ofMicrosoftObjectSid(otherValue.getBytes(StandardCharsets.US_ASCII));
         } else if (type.equals(X509OIDs.id_on_hardwareModuleName)) {
-          throw new BadInputException("Specifying otherName in this way " +
+          throw new PkixException("Specifying otherName in this way " +
               "is not supported for id_on_hardwareModuleName unsupported");
         } else if (type.equals(TcgOIDs.tcg_at_platformIdentifier)) {
-          throw new BadInputException("Specifying otherName in this way " +
+          throw new PkixException("Specifying otherName in this way " +
               "is not supported for tcg_at_platformIdentifier unsupported");
         } else {
           Asn1Primitive asn1Value;
@@ -744,7 +736,7 @@ public class X509Util {
           try {
             on = OtherName.create(type, asn1Value);
           } catch (CodecException e) {
-            throw new BadInputException("could not create OtherName", e);
+            throw new PkixException("could not create OtherName", e);
           }
         }
 
@@ -759,12 +751,12 @@ public class X509Util {
         return GeneralName.ofTagName(tag, value);
       case GeneralName.tag_ediPartyName: {
         if (value == null) {
-          throw new BadInputException("invalid ediPartyName: null");
+          throw new PkixException("invalid ediPartyName: null");
         }
 
         int idxSep = value.indexOf("=");
         if (idxSep == -1 || idxSep == value.length() - 1) {
-          throw new BadInputException("invalid ediPartyName " + value);
+          throw new PkixException("invalid ediPartyName " + value);
         }
         String nameAssigner = (idxSep == 0) ? null : value.substring(0, idxSep);
         String partyName = value.substring(idxSep + 1);
@@ -776,7 +768,7 @@ public class X509Util {
     } // end switch (tag)
   } // method createGeneralName
 
-  private static int getTag(String tagS) throws BadInputException {
+  private static int getTag(String tagS) throws PkixException {
     try {
       if ("0".equals(tagS) || "othername".equals(tagS)) {
         return 0;
@@ -795,10 +787,10 @@ public class X509Util {
       } else if ("8".equals(tagS) || "rid".equals(tagS) || "registeredid".equals(tagS)) {
         return 8;
       } else {
-        throw new BadInputException("unknown tag " + tagS);
+        throw new PkixException("unknown tag " + tagS);
       }
     } catch (NumberFormatException ex) {
-      throw new BadInputException("invalid tag '" + tagS + "'");
+      throw new PkixException("invalid tag '" + tagS + "'");
     }
   }
 
@@ -954,6 +946,83 @@ public class X509Util {
     }
 
     throw new IllegalArgumentException("unknown fieldName " + fieldName);
+  }
+
+  private static String valueToString(Asn1Primitive value) {
+    StringBuilder vBuf = new StringBuilder();
+
+    if (value instanceof AbstractAsn1String) { // && !(value instanceof ASN1UniversalString))
+      String v = ((AbstractAsn1String)value).getString();
+      if (!v.isEmpty() && v.charAt(0) == '#') {
+        vBuf.append('\\');
+      }
+
+      vBuf.append(v);
+    } else {
+      vBuf.append('#');
+      // -DM Hex.toHexString
+      vBuf.append(Hex.encode(value.getEncoded(Asn1Encoding.DER)));
+    }
+
+    // Escape in a single linear pass into a fresh builder. The previous implementation escaped by
+    // inserting a backslash into the buffer it was scanning (O(n) per insert), so a value of n
+    // RFC 4514 special characters - or n leading/trailing spaces - cost ~n^2/2 character moves: a
+    // CPU-exhaustion vector for an attacker-supplied large RDN reached via
+    // X500Name.toString()/equals()/hashCode(). Output is unchanged.
+    int len = vBuf.length();
+
+    // A leading "\#" (produced above when the value begins with '#') is emitted verbatim and the
+    // leading-space escaping is suppressed, matching the original phase ordering.
+    boolean hashPrefix = len >= 2 && vBuf.charAt(0) == '\\' && vBuf.charAt(1) == '#';
+
+    int firstNonSpace = 0;
+    while (firstNonSpace < len && vBuf.charAt(firstNonSpace) == ' ') {
+      firstNonSpace++;
+    }
+
+    int lastNonSpace = len - 1;
+    while (lastNonSpace >= 0 && vBuf.charAt(lastNonSpace) == ' ') {
+      lastNonSpace--;
+    }
+
+    StringBuilder out = new StringBuilder(len + 16);
+    int index = 0;
+    if (hashPrefix) {
+      out.append("\\#");
+      index = 2;
+    }
+
+    for (; index < len; index++) {
+      char c = vBuf.charAt(index);
+      boolean escape;
+      switch (c) {
+        case ',':
+        case '"':
+        case '\\':
+        case '+':
+        case '=':
+        case '<':
+        case '>':
+        case ';':
+          escape = true;
+          break;
+        case ' ':
+          // leading spaces escaped only without a "\#" prefix; trailing spaces always escaped.
+          escape = (!hashPrefix && index < firstNonSpace) || index > lastNonSpace;
+          break;
+        default:
+          escape = false;
+          break;
+      }
+
+      if (escape) {
+        out.append('\\');
+      }
+
+      out.append(c);
+    }
+
+    return out.toString();
   }
 
 }

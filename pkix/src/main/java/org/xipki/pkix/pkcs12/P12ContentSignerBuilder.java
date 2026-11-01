@@ -21,7 +21,6 @@ import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.Signature;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +61,7 @@ public class P12ContentSignerBuilder {
     return key;
   }
 
-  public ConcurrentSigner createSigner(SignAlgo signAlgo, int parallelism, SecureRandom random)
+  public ConcurrentSigner createSigner(SignAlgo signAlgo, int parallelism)
       throws XiSecurityException {
     Args.notNull(signAlgo, "signAlgo");
 
@@ -77,14 +76,14 @@ public class P12ContentSignerBuilder {
 
       for (int i = 0; i < parallelism; i++) {
         boolean checkSig = (i == 0);
-        Signer pqcSigner = buildSigner(compKey.pqcKey(), pqcAlgo, random, suite.label(), checkSig);
-        Signer tradSigner = buildSigner(compKey.tradKey(), tradAlgo, random, null, checkSig);
+        Signer pqcSigner = buildSigner(compKey.pqcKey(), pqcAlgo, suite.label(), checkSig);
+        Signer tradSigner = buildSigner(compKey.tradKey(), tradAlgo, null, checkSig);
         Signer signer = new P12CompositeMLDSASigner(signAlgo, pqcSigner, tradSigner);
         signers.add(signer);
       }
     } else {
       for (int i = 0; i < parallelism; i++) {
-        signers.add(buildSigner(key, signAlgo, random, null, (i == 0)));
+        signers.add(buildSigner(key, signAlgo, null, (i == 0)));
       }
     }
 
@@ -105,12 +104,12 @@ public class P12ContentSignerBuilder {
   } // method createSigner
 
   private static Signer buildSigner(
-      PrivateKey key, SignAlgo signAlgo, SecureRandom random,
-      byte[] context, boolean testSignature) throws XiSecurityException {
+      PrivateKey key, SignAlgo signAlgo, byte[] context, boolean testSignature)
+      throws XiSecurityException {
     Signature signature;
     try {
       signature = cryptoApi.newSignature(signAlgo.jceName());
-      KeyUtil.initSign(signature, key, null);
+      KeyUtil.initSign(signature, key);
       if (testSignature) {
         signature.update(new byte[]{1, 2, 3, 4});
         signature.sign();
@@ -119,7 +118,7 @@ public class P12ContentSignerBuilder {
       throw new XiSecurityException("error building Signature for SignAlgo " + signAlgo, e);
     }
 
-    return new SignatureSigner(signAlgo, signature, random, key, context);
+    return new SignatureSigner(signAlgo, signature, key, context);
   }
 
 }

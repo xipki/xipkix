@@ -14,10 +14,10 @@ import org.xipki.codec.asn1.oid.PkcsOIDs;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
+import org.xipki.pkix.exception.PkixException;
 
 import javax.crypto.Cipher;
 import java.security.KeyPair;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,20 +32,13 @@ public class CmsEnvelopedData {
   public static class Builder {
 
     private interface RecipientSpec {
-      RecipientInfo build(byte[] cek, SecureRandom random) throws CmsException;
+      RecipientInfo build(byte[] cek) throws PkixException;
     }
 
     private static final AlgorithmIdentifier RSA_PKCS15 =
         AlgorithmIdentifier.ofNullParams(PkcsOIDs.rsaEncryption);
 
     private final List<RecipientSpec> recipients = new ArrayList<>();
-
-    private SecureRandom random;
-
-    public Builder setSecureRandom(SecureRandom random) {
-      this.random = random;
-      return this;
-    }
 
     /**
      * Adds a key transport recipient with RSA PKCS#1 v1.5.
@@ -67,9 +60,9 @@ public class CmsEnvelopedData {
         Certificate cert, AlgorithmIdentifier keyEncryptionAlgorithm) {
       Args.notNull(cert, "cert");
       Args.notNull(keyEncryptionAlgorithm, "keyEncryptionAlgorithm");
-      recipients.add((cek, rnd) -> {
+      recipients.add(cek -> {
         byte[] encryptedKey = CmsCrypto.keyTransEncrypt(keyEncryptionAlgorithm,
-            CmsCrypto.publicKey(cert.getSubjectPublicKeyInfo()), cek, rnd);
+            CmsCrypto.publicKey(cert.getSubjectPublicKeyInfo()), cek);
         RecipientIdentifier rid = RecipientIdentifier.ofIssuerAndSerialNumber(
             new IssuerAndSerialNumber(cert));
         return RecipientInfo.ofKtri(
@@ -99,18 +92,18 @@ public class CmsEnvelopedData {
             "unsupported key agreement algorithm " + keyAgreementAlgorithm.getId());
       }
 
-      recipients.add((cek, rnd) -> {
+      recipients.add(cek -> {
         SubjectPublicKeyInfo originatorKeyInfo;
         try {
           originatorKeyInfo = SubjectPublicKeyInfo.fromPublicKey(originatorKeyPair.getPublic());
         } catch (CodecException e) {
-          throw new CmsException("invalid originator public key", e);
+          throw new PkixException("invalid originator public key", e);
         }
 
         AlgorithmIdentifier wrapAlg = new AlgorithmIdentifier(keyWrapAlgorithm);
         byte[] encryptedKey = CmsCrypto.keyAgreeWrap(Cipher.WRAP_MODE, keyAgreementAlgorithm,
             wrapAlg, originatorKeyPair.getPrivate(),
-            CmsCrypto.publicKey(cert.getSubjectPublicKeyInfo()), null, cek, rnd);
+            CmsCrypto.publicKey(cert.getSubjectPublicKeyInfo()), null, cek);
 
         OriginatorIdentifierOrKey originator = OriginatorIdentifierOrKey.ofOriginatorKey(
             new OriginatorPublicKey(originatorKeyInfo.getAlgorithm(),
@@ -150,12 +143,12 @@ public class CmsEnvelopedData {
             "unsupported key encryption algorithm " + keyEncryptionAlgorithm.getId());
       }
 
-      recipients.add((cek, rnd) -> {
+      recipients.add(cek -> {
         PBKDF2Params pbkdf2Params = new PBKDF2Params(salt, iterationCount, prf);
         byte[] kek = CmsCrypto.pbkdf2(password, pbkdf2Params, keySize);
 
         byte[] iv = new byte[CmsCrypto.passwordKekBlockSize(keyEncryptionAlgorithm)];
-        rnd.nextBytes(iv);
+        CmsCrypto.random().nextBytes(iv);
         byte[] encryptedKey = CmsCrypto.rfc3211Wrap(
             Cipher.WRAP_MODE, keyEncryptionAlgorithm, kek, iv, cek);
 
@@ -173,23 +166,21 @@ public class CmsEnvelopedData {
      *        {@link CmsAlgorithm#AES256_GCM}.
      * @param content the content.
      * @return the EnvelopedData.
-     * @throws CmsException if the EnvelopedData cannot be built.
+     * @throws PkixException if the EnvelopedData cannot be built.
      */
     public CmsEnvelopedData build(Asn1Oid contentEncryptionAlgorithm, byte[] content)
-        throws CmsException {
+        throws PkixException {
       Args.notNull(contentEncryptionAlgorithm, "contentEncryptionAlgorithm");
       Args.notNull(content, "content");
       if (recipients.isEmpty()) {
-        throw new CmsException("no recipient is specified");
+        throw new PkixException("no recipient is specified");
       }
 
-      SecureRandom rnd = CmsCrypto.random(random);
-      CmsCrypto.EncryptedContent ec = CmsCrypto.encryptContent(
-          contentEncryptionAlgorithm, content, rnd);
+      CmsCrypto.EncryptedContent ec = CmsCrypto.encryptContent(contentEncryptionAlgorithm, content);
 
       List<RecipientInfo> recipientInfos = new ArrayList<>(recipients.size());
       for (RecipientSpec spec : recipients) {
-        recipientInfos.add(spec.build(ec.cek, rnd));
+        recipientInfos.add(spec.build(ec.cek));
       }
 
       EncryptedContentInfo eci = new EncryptedContentInfo(CmsOIDs.data, ec.algorithm,
@@ -204,15 +195,15 @@ public class CmsEnvelopedData {
 
   private final List<CmsRecipient> recipients;
 
-  public CmsEnvelopedData(byte[] encoded) throws CmsException {
+  public CmsEnvelopedData(byte[] encoded) throws PkixException {
     this(parseContentInfo(encoded));
   }
 
-  public CmsEnvelopedData(ContentInfo contentInfo) throws CmsException {
+  public CmsEnvelopedData(ContentInfo contentInfo) throws PkixException {
     this(parseEnvelopedData(contentInfo));
   }
 
-  public CmsEnvelopedData(EnvelopedData envelopedData) throws CmsException {
+  public CmsEnvelopedData(EnvelopedData envelopedData) throws PkixException {
     this.envelopedData = Args.notNull(envelopedData, "envelopedData");
 
     List<CmsRecipient> list = new ArrayList<>();
@@ -232,29 +223,29 @@ public class CmsEnvelopedData {
         }
       }
     } catch (RuntimeException e) {
-      throw new CmsException("malformed EnvelopedData: " + e.getMessage(), e);
+      throw new PkixException("malformed EnvelopedData: " + e.getMessage(), e);
     }
     this.recipients = Collections.unmodifiableList(list);
   }
 
-  private static ContentInfo parseContentInfo(byte[] encoded) throws CmsException {
+  private static ContentInfo parseContentInfo(byte[] encoded) throws PkixException {
     try {
       return ContentInfo.fromEncoded(Args.notNull(encoded, "encoded"));
     } catch (CodecException | RuntimeException e) {
-      throw new CmsException("malformed ContentInfo: " + e.getMessage(), e);
+      throw new PkixException("malformed ContentInfo: " + e.getMessage(), e);
     }
   }
 
-  private static EnvelopedData parseEnvelopedData(ContentInfo contentInfo) throws CmsException {
+  private static EnvelopedData parseEnvelopedData(ContentInfo contentInfo) throws PkixException {
     if (!CmsOIDs.envelopedData.equals(Args.notNull(contentInfo, "contentInfo").getContentType())) {
-      throw new CmsException("content type is not id-envelopedData, but "
+      throw new PkixException("content type is not id-envelopedData, but "
           + contentInfo.getContentType().getId());
     }
 
     try {
       return EnvelopedData.fromAsn1(contentInfo.getContent().asSequence());
     } catch (CodecException | RuntimeException e) {
-      throw new CmsException("malformed EnvelopedData: " + e.getMessage(), e);
+      throw new PkixException("malformed EnvelopedData: " + e.getMessage(), e);
     }
   }
 
@@ -282,11 +273,11 @@ public class CmsEnvelopedData {
     return null;
   }
 
-  byte[] decryptContent(byte[] cek) throws CmsException {
+  byte[] decryptContent(byte[] cek) throws PkixException {
     EncryptedContentInfo eci = envelopedData.getEncryptedContentInfo();
     byte[] encryptedContent = eci.encryptedContent();
     if (encryptedContent == null) {
-      throw new CmsException("encryptedContent is absent");
+      throw new PkixException("encryptedContent is absent");
     }
     return CmsCrypto.decryptContent(eci.getContentEncryptionAlgorithm(), cek, encryptedContent);
   }

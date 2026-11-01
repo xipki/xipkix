@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.xipki.codec.asn1.GenerationException;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.pkix.asn1.pkcs10.CertificationRequest;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
 import org.xipki.crypto.core.KeyInfoUtil;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.codec.util.Args;
@@ -35,9 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
@@ -58,10 +56,6 @@ public class SecurityFactoryImpl implements SecurityFactory {
 
   private SignerFactoryRegister signerFactoryRegister;
 
-  private boolean strongRandom4KeyEnabled = false;
-
-  private boolean strongRandom4SignEnabled = false;
-
   private String csrConfFile = "xipki/etc/csr.json";
 
   private CsrControl csrControl;
@@ -77,14 +71,6 @@ public class SecurityFactoryImpl implements SecurityFactory {
   @Override
   public Set<String> supportedSignerTypes() {
     return signerFactoryRegister.supportedSignerTypes();
-  }
-
-  public void setStrongRandom4KeyEnabled(boolean strongRandom4KeyEnabled) {
-    this.strongRandom4KeyEnabled = strongRandom4KeyEnabled;
-  }
-
-  public void setStrongRandom4SignEnabled(boolean strongRandom4SignEnabled) {
-    this.strongRandom4SignEnabled = strongRandom4SignEnabled;
   }
 
   @Override
@@ -208,28 +194,6 @@ public class SecurityFactoryImpl implements SecurityFactory {
   public void setSignerFactoryRegister(SignerFactoryRegister signerFactoryRegister) {
     this.signerFactoryRegister = signerFactoryRegister;
   }
-
-  @Override
-  public SecureRandom random4Key() {
-    return getSecureRandom(strongRandom4KeyEnabled);
-  }
-
-  @Override
-  public SecureRandom random4Sign() {
-    return getSecureRandom(strongRandom4SignEnabled);
-  }
-
-  private static SecureRandom getSecureRandom(boolean strong) {
-    if (!strong) {
-      return new SecureRandom();
-    }
-
-    try {
-      return SecureRandom.getInstanceStrong();
-    } catch (NoSuchAlgorithmException ex) {
-      throw new IllegalStateException("could not get strong SecureRandom: " + ex.getMessage());
-    }
-  } // method getSecureRandom
 
   private static void validateSigner(
       ConcurrentSigner signer, String signerType, SignerConf signerConf)

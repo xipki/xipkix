@@ -6,12 +6,12 @@ package org.xipki.pkix.pkcs11;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xipki.codec.util.Args;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.pkcs11.wrapper.Category;
 import org.xipki.pkcs11.wrapper.PKCS11Module;
 import org.xipki.pkcs11.wrapper.PKCS11T;
 import org.xipki.codec.exception.InvalidConfException;
 import org.xipki.pkix.util.misc.CollectionUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 import org.xipki.pkix.util.password.PasswordResolverException;
 import org.xipki.pkix.util.password.Passwords;
 

@@ -5,7 +5,7 @@ package org.xipki.pkix.util.password;
 
 import org.xipki.codec.util.Args;
 import org.xipki.codec.ConfPairs;
-import org.xipki.pkix.util.misc.StringUtil;
+import org.xipki.codec.util.StringUtil;
 
 import java.io.BufferedReader;
 import java.io.FileReader;

@@ -7,8 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xipki.codec.asn1.GenerationException;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
-import org.xipki.pkix.asn1.util.ContentVerifier;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
+import org.xipki.codec.crypto.ContentVerifier;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.codec.util.Args;
 import org.xipki.crypto.api.CryptoApi;
@@ -22,6 +22,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.time.Instant;
 
 /**
  * Signature Content Verifier Provider.
@@ -114,8 +115,8 @@ public class SignatureContentVerifierProvider implements ContentVerifierProvider
   }
 
   @Override
-  public Certificate getAssociatedCertificate() {
-    return associatedCert;
+  public boolean isAssociatedCertificateValidOn(Instant time) {
+    return associatedCert != null && associatedCert.isValidOn(time);
   }
 
   @Override

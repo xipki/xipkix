@@ -3,7 +3,7 @@
 
 package org.xipki.pkix.sign;
 
-import org.xipki.pkix.asn1.util.ContentSigner;
+import org.xipki.codec.crypto.ContentSigner;
 import org.xipki.crypto.core.XiSecurityException;
 
 import java.security.SignatureException;

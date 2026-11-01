@@ -19,6 +19,7 @@ import org.xipki.codec.asn1.oid.PkcsOIDs;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
+import org.xipki.pkix.exception.PkixException;
 
 import javax.crypto.Cipher;
 import java.security.PrivateKey;
@@ -109,9 +110,9 @@ public class CmsRecipient {
    * Decrypts the content as key transport or key agreement recipient.
    * @param key the private key of the recipient.
    * @return the decrypted content.
-   * @throws CmsException if the content cannot be decrypted.
+   * @throws PkixException if the content cannot be decrypted.
    */
-  public byte[] decrypt(PrivateKey key) throws CmsException {
+  public byte[] decrypt(PrivateKey key) throws PkixException {
     Args.notNull(key, "key");
     byte[] cek;
     if (type == Type.KEY_TRANS) {
@@ -120,7 +121,7 @@ public class CmsRecipient {
     } else if (type == Type.KEY_AGREE) {
       cek = unwrapKeyAgree(key);
     } else {
-      throw new CmsException("decryption with private key is not supported for " + type);
+      throw new PkixException("decryption with private key is not supported for " + type);
     }
 
     return envelopedData.decryptContent(cek);
@@ -130,23 +131,23 @@ public class CmsRecipient {
    * Decrypts the content as password recipient (RFC 3211).
    * @param password the password.
    * @return the decrypted content.
-   * @throws CmsException if the content cannot be decrypted.
+   * @throws PkixException if the content cannot be decrypted.
    */
-  public byte[] decrypt(char[] password) throws CmsException {
+  public byte[] decrypt(char[] password) throws PkixException {
     Args.notNull(password, "password");
     if (type != Type.PASSWORD) {
-      throw new CmsException("decryption with password is not supported for " + type);
+      throw new PkixException("decryption with password is not supported for " + type);
     }
 
     try {
       AlgorithmIdentifier kdAlg = pwri.getKeyDerivationAlgorithm();
       if (kdAlg == null || !PkcsOIDs.id_PBKDF2.equals(kdAlg.getAlgorithm())) {
-        throw new CmsException("unsupported key derivation algorithm");
+        throw new PkixException("unsupported key derivation algorithm");
       }
 
       AlgorithmIdentifier kekAlg = pwri.getKeyEncryptionAlgorithm();
       if (!PkcsOIDs.id_alg_PWRI_KEK.equals(kekAlg.getAlgorithm())) {
-        throw new CmsException("unsupported key encryption algorithm "
+        throw new PkixException("unsupported key encryption algorithm "
             + kekAlg.getAlgorithm().getId());
       }
 
@@ -154,7 +155,7 @@ public class CmsRecipient {
           kekAlg.getParameters().asSequence());
       int keySize = CmsCrypto.passwordKekKeySize(kekParams.getAlgorithm());
       if (keySize == 0) {
-        throw new CmsException("unsupported key encryption algorithm "
+        throw new PkixException("unsupported key encryption algorithm "
             + kekParams.getAlgorithm().getId());
       }
 
@@ -165,15 +166,15 @@ public class CmsRecipient {
           pwri.encryptedKey());
       return envelopedData.decryptContent(cek);
     } catch (CodecException | RuntimeException e) {
-      throw new CmsException("malformed PasswordRecipientInfo: " + e.getMessage(), e);
+      throw new PkixException("malformed PasswordRecipientInfo: " + e.getMessage(), e);
     }
   }
 
-  private byte[] unwrapKeyAgree(PrivateKey key) throws CmsException {
+  private byte[] unwrapKeyAgree(PrivateKey key) throws PkixException {
     try {
       OriginatorPublicKey originatorKey = kari.getOriginator().getOriginatorKey();
       if (originatorKey == null) {
-        throw new CmsException("only originatorKey is supported as originator");
+        throw new PkixException("only originatorKey is supported as originator");
       }
 
       AlgorithmIdentifier keyEncAlg = kari.getKeyEncryptionAlgorithm();
@@ -186,9 +187,9 @@ public class CmsRecipient {
           new SubjectPublicKeyInfo(keyAlg, originatorKey.publicKeyData());
 
       return CmsCrypto.keyAgreeWrap(Cipher.UNWRAP_MODE, keyEncAlg.getAlgorithm(), wrapAlg, key,
-          CmsCrypto.publicKey(senderKeyInfo), kari.ukm(), karKey.encryptedKey(), null);
+          CmsCrypto.publicKey(senderKeyInfo), kari.ukm(), karKey.encryptedKey());
     } catch (CodecException | RuntimeException e) {
-      throw new CmsException("malformed KeyAgreeRecipientInfo: " + e.getMessage(), e);
+      throw new PkixException("malformed KeyAgreeRecipientInfo: " + e.getMessage(), e);
     }
   }
 

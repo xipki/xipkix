@@ -5,19 +5,19 @@ package org.xipki.pkix.verify;
 
 import org.xipki.codec.asn1.GenerationException;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
-import org.xipki.pkix.asn1.util.ContentVerifier;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
-import org.xipki.pkix.asn1.x509.Certificate;
+import org.xipki.codec.crypto.ContentVerifier;
+import org.xipki.codec.crypto.ContentVerifierProvider;
+import org.xipki.codec.crypto.DigestOutputStream;
 import org.xipki.codec.util.Args;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.crypto.core.composite.CompositeMLDSAPublicKey;
 import org.xipki.crypto.core.composite.CompositeSigUtil;
-import org.xipki.pkix.util.DigestOutputStream;
 
 import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
+import java.time.Instant;
 
 /**
  * Composite MLDSAContent Verifier Provider.
@@ -89,8 +89,8 @@ public class CompositeMLDSAContentVerifierProvider implements ContentVerifierPro
   }
 
   @Override
-  public Certificate getAssociatedCertificate() {
-    return null;
+  public boolean isAssociatedCertificateValidOn(Instant time) {
+    return false;
   }
 
   @Override

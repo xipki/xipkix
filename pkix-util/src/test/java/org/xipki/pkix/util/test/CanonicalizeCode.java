@@ -4,7 +4,7 @@
 package org.xipki.pkix.util.test;
 
 import org.xipki.codec.util.IoUtil;
-import org.xipki.pkix.util.misc.StringUtil;
+import org.xipki.codec.util.StringUtil;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;

@@ -3,14 +3,15 @@
 
 package org.xipki.pkix.util.password;
 
+import org.xipki.codec.Base64;
 import org.xipki.codec.util.Args;
-import org.xipki.pkix.util.misc.StringUtil;
+import org.xipki.codec.util.StringUtil;
+import org.xipki.codec.util.XiArrays;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Optional;
 
 /**
@@ -19,8 +20,6 @@ import java.util.Optional;
  * @author Lijun Liao (xipki)
  */
 public class PBEPasswordService {
-
-  static final SecureRandom random = new SecureRandom();
 
   public static final String PROTOCOL_PBE = "PBE";
 
@@ -46,7 +45,7 @@ public class PBEPasswordService {
       passwordHintWithoutPrefix += new String(suffix);
     }
 
-    byte[] bytes = Base64.getDecoder().decode(passwordHintWithoutPrefix);
+    byte[] bytes = Base64.decode(passwordHintWithoutPrefix);
     int len = bytes.length;
     if (len <= 16 && len != 0) {
       throw new PasswordResolverException("invalid length of the encrypted password");
@@ -102,8 +101,7 @@ public class PBEPasswordService {
     iterationCountBytes[0] = (byte) (iterationCount >>> 8);
     iterationCountBytes[1] = (byte) (iterationCount & 0xFF);
 
-    byte[] salt = new byte[16];
-    random.nextBytes(salt);
+    byte[] salt = RandomUtil.nextBytes(16);
     byte[] encrypted;
     try {
       encrypted = PasswordBasedEncryption.encrypt(algo,
@@ -112,11 +110,11 @@ public class PBEPasswordService {
       throw new PasswordResolverException("could not encrypt the password: " + ex.getMessage());
     }
 
-    byte[] encryptedText = org.xipki.codec.util.Arrays.concatenate(
+    byte[] encryptedText = XiArrays.concatenate(
         new byte[] {(byte) (algo.code() & 0xFF)}, // algo
         iterationCountBytes, salt, encrypted);
 
-    String b64 = Base64.getEncoder().encodeToString(encryptedText);
+    String b64 = Base64.encodeToString(encryptedText);
 
     // remove the ending '='.
     int endIndex = b64.length();

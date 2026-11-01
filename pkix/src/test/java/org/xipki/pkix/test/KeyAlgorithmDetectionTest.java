@@ -15,7 +15,7 @@ import org.xipki.pkix.util.KeyUtil;
 
 import java.security.Key;
 import java.security.KeyPair;
-import java.security.SecureRandom;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Detection of the key type independent of the crypto backend: the names returned by
@@ -25,8 +25,6 @@ import java.security.SecureRandom;
  * @author Lijun Liao (xipki)
  */
 public class KeyAlgorithmDetectionTest {
-
-  private static final SecureRandom RND = new SecureRandom();
 
   @Test
   public void testGetCurve() throws Exception {
@@ -66,7 +64,7 @@ public class KeyAlgorithmDetectionTest {
         KeyInfoUtil.getAlgorithmOid(key);
         try {
           SignAlgo.getInstance(key);
-        } catch (java.security.NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
           // e.g. KEM keys
         }
         Assert.assertArrayEquals(keySpec + " (" + key.getClass().getName() + ")",
@@ -93,7 +91,7 @@ public class KeyAlgorithmDetectionTest {
    * The generated keys, and the keys parsed from their encodings (as loaded from a keystore).
    */
   private static Key[] keys(KeySpec keySpec) throws Exception {
-    KeyPair kp = KeyUtil.generateKeyPair(keySpec, RND);
+    KeyPair kp = KeyUtil.generateKeyPair(keySpec);
     return new Key[]{kp.getPublic(), kp.getPrivate(),
         KeyInfoUtil.getPublicKey(SubjectPublicKeyInfo.fromPublicKey(kp.getPublic())),
         KeyInfoUtil.getPrivateKey(PrivateKeyInfo.fromPrivateKey(kp.getPrivate()))};

@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.SecureRandom;
 import java.security.Signature;
 
 /**
@@ -60,7 +59,7 @@ public abstract class Pkcs12SignVerifyTest {
       keypairWithCert = KeypairWithCert.fromPKCS12Keystore(ks, password, null, password, cert);
     }
     P12ContentSignerBuilder builder = new P12ContentSignerBuilder(keypairWithCert);
-    signer = builder.createSigner(getSignatureAlgorithm(), 1, new SecureRandom());
+    signer = builder.createSigner(getSignatureAlgorithm(), 1);
     return signer;
   }
 

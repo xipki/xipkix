@@ -4,14 +4,14 @@
 package org.xipki.pkix.pkcs12;
 
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
-import org.xipki.codec.util.Arrays;
-import org.xipki.pkix.asn1.util.ContentSigner;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.DigestOutputStream;
 import org.xipki.codec.util.Args;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.crypto.core.composite.CompositeSigSuite;
 import org.xipki.crypto.core.composite.CompositeSigUtil;
 import org.xipki.pkix.sign.Signer;
-import org.xipki.pkix.util.DigestOutputStream;
 
 import java.io.OutputStream;
 import java.security.SignatureException;
@@ -85,7 +85,7 @@ public class P12CompositeMLDSASigner implements Signer {
 
       byte[]  pqcSig =  pqcSigner.x509Signer().atomicSign(m_);
       byte[] tradSig = tradSigner.x509Signer().atomicSign(m_);
-      return Arrays.concatenate(pqcSig, tradSig);
+      return XiArrays.concatenate(pqcSig, tradSig);
     }
   }
 

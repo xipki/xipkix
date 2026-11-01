@@ -17,6 +17,11 @@
       <version>${xicrypto.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.xipki.crypto</groupId>
+      <artifactId>crypto-api</artifactId>
+      <version>${xicrypto.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>

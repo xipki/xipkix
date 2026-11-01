@@ -12,6 +12,7 @@ import org.xipki.crypto.core.KeySpec;
 import org.xipki.crypto.core.KeyInfoUtil;
 import org.xipki.pkix.util.KeyUtil;
 import org.xipki.crypto.core.WeierstraussCurveEnum;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import java.math.BigInteger;
 import java.security.KeyPair;
@@ -29,7 +30,7 @@ import java.util.List;
  */
 public class SmDisabledTest {
 
-  private static final SecureRandom RND = new SecureRandom();
+  private static final SecureRandom RND = RandomUtil.random();
 
   private static final boolean propertySetByTest;
 
@@ -86,14 +87,14 @@ public class SmDisabledTest {
   public void testOtherKeyTypes() throws Exception {
     List<KeySpec> keySpecs = Arrays.asList(KeySpec.RSA2048, KeySpec.P256, KeySpec.ED25519,
         KeySpec.X25519, KeySpec.MLDSA65, KeySpec.MLKEM768, KeySpec.MLDSA65_P256,
-        KeySpec.BRAINPOOLP256R1, KeySpec.FRP256V1);
+        KeySpec.BRAINPOOLP256R1);
 
     for (KeySpec keySpec : keySpecs) {
-      KeyPair kp = KeyUtil.generateKeyPair(keySpec, RND);
+      KeyPair kp = KeyUtil.generateKeyPair(keySpec);
       Assert.assertNotNull(keySpec.name(), kp.getPrivate());
     }
 
-    KeyPair kp = KeyUtil.generateKeyPair(KeySpec.P256, RND);
+    KeyPair kp = KeyUtil.generateKeyPair(KeySpec.P256);
     Signature sig = Signature.getInstance("SHA256withECDSA");
     sig.initSign(kp.getPrivate());
     sig.update(new byte[10]);

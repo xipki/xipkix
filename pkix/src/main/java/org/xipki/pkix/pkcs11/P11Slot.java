@@ -16,6 +16,7 @@ import org.xipki.codec.asn1.crypto.RSAPrivateKey;
 import org.xipki.codec.asn1.crypto.RSAPublicKey;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
 import org.xipki.codec.asn1.oid.AlgorithmOIDs;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.crypto.core.KeyInfoUtil;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.Hex;
@@ -36,7 +37,6 @@ import org.xipki.pkix.cert.KeyInfoPair;
 import org.xipki.crypto.core.EcCurveEnum;
 import org.xipki.pkix.util.KeyUtil;
 import org.xipki.pkix.util.misc.LogUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -881,8 +881,6 @@ public class P11Slot implements Closeable {
         return PKCS11KeyPairType.BRAINPOOLP512R1;
       case SM2:
         return PKCS11KeyPairType.SM2;
-      case FRP256V1:
-        return PKCS11KeyPairType.FRP256V1;
       case X25519:
         return PKCS11KeyPairType.X25519;
       case X448:

@@ -6,6 +6,7 @@ package org.xipki.pkix.scep.message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xipki.codec.asn1.Asn1Oid;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.pkix.asn1.cms.Attributes;
 import org.xipki.pkix.asn1.cms.ContentInfo;
 import org.xipki.pkix.asn1.cms.IssuerAndSerialNumber;
@@ -21,7 +22,7 @@ import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.core.HashAlgo;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.pkix.cms.CmsEnvelopedData;
-import org.xipki.pkix.cms.CmsException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.pkix.cms.CmsSignedData;
 import org.xipki.pkix.cms.CmsSigner;
 import org.xipki.pkix.cert.X509Cert;
@@ -35,7 +36,6 @@ import org.xipki.pkix.scep.util.ScepUtil;
 import org.xipki.pkix.util.X509Util;
 import org.xipki.pkix.util.misc.CollectionUtil;
 import org.xipki.pkix.util.misc.LogUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -296,7 +296,7 @@ public class DecodedPkiMessage extends PkiMessage {
     boolean signatureValid;
     try {
       signatureValid = ScepUtil.verifySignature(signerInfo, signerX509Cert);
-    } catch (CmsException ex) {
+    } catch (PkixException ex) {
       final String msg = "could not verify the signature";
       LogUtil.error(LOG, ex);
       ret.setFailureMessage(msg + ": " + ex.getMessage());
@@ -327,7 +327,7 @@ public class DecodedPkiMessage extends PkiMessage {
     CmsEnvelopedData envData;
     try {
       envData = new CmsEnvelopedData(pkiMessage.getContent());
-    } catch (CmsException ex) {
+    } catch (PkixException ex) {
       final String msg = "could not create the CMSEnvelopedData";
       LogUtil.error(LOG, ex);
       ret.setFailureMessage(msg + ": " + ex.getMessage());

@@ -72,10 +72,10 @@ public class OriginatorIdentifierOrKey extends Asn1Encodable {
       } else if (tagNo == 1) {
         return ofOriginatorKey(OriginatorPublicKey.fromAsn1(t.getImplicitSequenceBase()));
       } else {
-        throw CodecException.SEQ_WITH_UNEXPECTED_ELEMENTS;
+        throw CodecException.seqWithUnexpectedElements();
       }
     } else {
-      throw CodecException.SEQ_WITH_UNEXPECTED_ELEMENTS;
+      throw CodecException.seqWithUnexpectedElements();
     }
   }
 

@@ -3,7 +3,8 @@
 
 package org.xipki.pkix.util.password;
 
-import org.xipki.pkix.util.misc.StringUtil;
+import org.xipki.codec.util.StringUtil;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
@@ -73,7 +74,7 @@ public class SecurePasswordInputPanel extends Panel {
     final int n = rows.size();
 
     while (!rows.isEmpty()) {
-      int row = PBEPasswordService.random.nextInt(n);
+      int row = RandomUtil.nextInt(n);
       if (!rows.contains(row)) {
         continue;
       }

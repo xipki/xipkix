@@ -3,11 +3,10 @@
 
 package org.xipki.pkix.sign;
 
-import org.xipki.codec.asn1.RuntimeOperatorException;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.SignatureOutputStream;
 import org.xipki.crypto.core.KeyInfoUtil;
-import org.xipki.pkix.asn1.util.ContentSigner;
-import org.xipki.pkix.asn1.util.SignatureOutputStream;
 import org.xipki.codec.util.Args;
 import org.xipki.crypto.api.CryptoApiFactory;
 import org.xipki.crypto.core.SignAlgo;
@@ -19,7 +18,6 @@ import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.PrivateKey;
-import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Arrays;
@@ -35,15 +33,14 @@ public class SignatureSigner implements Signer {
 
   private final ContentSigner x509Signer;
 
-  public SignatureSigner(
-      SignAlgo sigAlgo, Signature signer, SecureRandom random,
-      PrivateKey key, byte[] context) throws XiSecurityException {
-    this(sigAlgo.algorithmIdentifier(), signer, random, key, context);
+  public SignatureSigner(SignAlgo sigAlgo, Signature signer, PrivateKey key, byte[] context)
+      throws XiSecurityException {
+    this(sigAlgo.algorithmIdentifier(), signer, key, context);
   }
 
   public SignatureSigner(
-      AlgorithmIdentifier sigAlgId, Signature signer, SecureRandom random,
-      PrivateKey key, byte[] context) throws XiSecurityException {
+      AlgorithmIdentifier sigAlgId, Signature signer, PrivateKey key, byte[] context)
+      throws XiSecurityException {
     Args.notNull(sigAlgId, "sigAlgId");
     Args.notNull(signer, "signer");
     Args.notNull(key, "key");
@@ -61,12 +58,12 @@ public class SignatureSigner implements Signer {
       @Override
       public OutputStream getOutputStream() {
         try {
-          KeyUtil.initSign(signer, key, random);
+          KeyUtil.initSign(signer, key);
           if (context != null) {
             KeyInfoUtil.setContext(signer, context);
           }
         } catch (InvalidKeyException | InvalidAlgorithmParameterException ex) {
-          throw new RuntimeOperatorException("could not initSign", ex);
+          throw new IllegalStateException("could not initSign", ex);
         }
         return stream;
       }
@@ -94,7 +91,7 @@ public class SignatureSigner implements Signer {
     } catch (GeneralSecurityException e) {
       throw new XiSecurityException("could not create Signature for " + signAlgo, e);
     }
-    return new SignatureSigner(signAlgo, signature, null, key, null).x509Signer();
+    return new SignatureSigner(signAlgo, signature, key, null).x509Signer();
   }
 
   @Override

@@ -8,6 +8,7 @@ import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -15,9 +16,9 @@ import org.bouncycastle.operator.DefaultAlgorithmNameFinder;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.xipki.codec.asn1.GenerationException;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
-import org.xipki.pkix.asn1.util.ContentSigner;
-import org.xipki.pkix.asn1.util.ContentVerifier;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.ContentVerifier;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.pkix.asn1.x509.Certificate;
 
 import java.io.ByteArrayOutputStream;
@@ -33,6 +34,7 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.X509Certificate;
 import java.security.spec.ECGenParameterSpec;
+import java.time.Instant;
 import java.util.Date;
 
 /**
@@ -63,7 +65,7 @@ public class TestUtil {
     }
 
     public X509Certificate jceCert() throws Exception {
-      return new org.bouncycastle.cert.jcajce.JcaX509CertificateConverter()
+      return new JcaX509CertificateConverter()
           .setProvider(BC).getCertificate(bcCert);
     }
   }
@@ -155,8 +157,8 @@ public class TestUtil {
       }
 
       @Override
-      public Certificate getAssociatedCertificate() {
-        return cert;
+      public boolean isAssociatedCertificateValidOn(Instant time) {
+        return cert != null && cert.isValidOn(time);
       }
 
       @Override

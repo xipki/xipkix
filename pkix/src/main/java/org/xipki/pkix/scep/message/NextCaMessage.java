@@ -3,14 +3,14 @@
 
 package org.xipki.pkix.scep.message;
 
+import org.xipki.codec.crypto.ContentSigner;
 import org.xipki.pkix.asn1.cms.ContentInfo;
 import org.xipki.codec.asn1.oid.CmsOIDs;
-import org.xipki.pkix.asn1.util.ContentSigner;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.core.HashAlgo;
 import org.xipki.crypto.core.SignAlgo;
-import org.xipki.pkix.cms.CmsException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.pkix.cms.CmsSignedData;
 import org.xipki.crypto.core.XiSecurityException;
 import org.xipki.pkix.cert.X509Cert;
@@ -78,7 +78,7 @@ public class NextCaMessage {
       // certificateSet
       ScepUtil.addCmsCertSet(builder, cmsCertSet);
       return builder.build().toASN1Structure();
-    } catch (CmsException | XiSecurityException ex) {
+    } catch (PkixException | XiSecurityException ex) {
       throw new CodecException(ex);
     }
   } // method encode

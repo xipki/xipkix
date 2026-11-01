@@ -6,8 +6,8 @@ package org.xipki.pkix.test;
 import org.junit.Assert;
 import org.junit.Test;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
-import org.xipki.pkix.asn1.util.ContentSigner;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.crypto.core.KeySpec;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.crypto.core.KemUtil;
@@ -17,6 +17,7 @@ import org.xipki.pkix.sign.KemHmacSigner;
 import org.xipki.pkix.util.KeyUtil;
 import org.xipki.crypto.core.SecretKeyWithAlias;
 import org.xipki.pkix.verify.KEMContentVerifierProvider;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +34,7 @@ import java.security.SecureRandom;
  */
 public class KemPopTest {
 
-  private static final SecureRandom RND = new SecureRandom();
+  private static final SecureRandom RND = RandomUtil.random();
 
   private static final byte[] DATA = "certificate request".getBytes(StandardCharsets.US_ASCII);
 
@@ -57,6 +58,23 @@ public class KemPopTest {
     testKemPop(KeySpec.MLKEM768_X25519);
   }
 
+  @Test
+  public void testCompositeMlkem1024X448() throws Exception {
+    testKemPop(KeySpec.MLKEM1024_X448);
+  }
+
+  /**
+   * The RSA-OAEP variants: the traditional private key is the RSAPrivateKey.
+   */
+  @Test
+  public void testCompositeMlkemRsa() throws Exception {
+    KeySpec[] keySpecs = {KeySpec.MLKEM768_RSA2048, KeySpec.MLKEM768_RSA3072,
+        KeySpec.MLKEM768_RSA4096, KeySpec.MLKEM1024_RSA3072};
+    for (KeySpec keySpec : keySpecs) {
+      testKemPop(keySpec);
+    }
+  }
+
   /**
    * The ECDH variants: the encapsulation and the decapsulation must agree on the shared
    * secret (the x coordinate of the fixed-length point encoding).
@@ -78,7 +96,7 @@ public class KemPopTest {
   @Test
   public void testXdhVerifierIsSelected() throws Exception {
     for (KeySpec keySpec : new KeySpec[]{KeySpec.X25519, KeySpec.X448}) {
-      KeyPair kp = KeyUtil.generateKeyPair(keySpec, RND);
+      KeyPair kp = KeyUtil.generateKeyPair(keySpec);
       try {
         KeyUtil.getContentVerifierProvider(kp.getPublic(), null, null);
         Assert.fail(keySpec + ": InvalidKeyException expected");
@@ -90,7 +108,7 @@ public class KemPopTest {
   }
 
   private static void testKemPop(KeySpec keySpec) throws Exception {
-    KeyPair kp = KeyUtil.generateKeyPair(keySpec, RND);
+    KeyPair kp = KeyUtil.generateKeyPair(keySpec);
     SubjectPublicKeyInfo spki = SubjectPublicKeyInfo.fromPublicKey(kp.getPublic());
 
     byte[] masterKeyValue = new byte[32];
@@ -99,7 +117,7 @@ public class KemPopTest {
         new SecretKeySpec(masterKeyValue, "HMAC-SHA256"));
 
     // CA: encapsulates the MAC key to the public key
-    KemEncapKey encapKey = KemUtil.generateKemEncapKey(spki, masterKey, RND);
+    KemEncapKey encapKey = KemUtil.generateKemEncapKey(spki, masterKey);
 
     // requestor: decapsulates the MAC key with the private key, and MACs the request
     byte[] macKey;

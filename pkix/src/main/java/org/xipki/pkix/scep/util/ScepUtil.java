@@ -13,7 +13,7 @@ import org.xipki.pkix.asn1.x509.CertificateList;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.core.SignAlgo;
-import org.xipki.pkix.cms.CmsException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.pkix.cms.CmsSignedData;
 import org.xipki.pkix.cms.CmsSigner;
 import org.xipki.pkix.cert.X509Cert;
@@ -156,10 +156,10 @@ public class ScepUtil {
    * @param signer the signer.
    * @param signerCert the certificate of the signer.
    * @return true if the signature is valid, false otherwise.
-   * @throws CmsException if the signature cannot be verified.
+   * @throws PkixException if the signature cannot be verified.
    */
   public static boolean verifySignature(CmsSigner signer, X509Cert signerCert)
-      throws CmsException {
+      throws PkixException {
     return signer.verify(new SignatureContentVerifierProvider(
         signerCert.publicKey(), signerCert.getCert()));
   }

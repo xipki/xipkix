@@ -19,6 +19,7 @@ import org.xipki.codec.asn1.oid.PkcsOIDs;
 import org.xipki.pkix.asn1.pkcs12.PKCS12PBEParams;
 import org.xipki.crypto.api.AlgorithmNames;
 import org.xipki.pkix.pkcs12.Pkcs12Pbe;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
@@ -29,6 +30,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.util.Set;
 
 /**
  * Tests {@link Pkcs12Pbe} against the PKCS#12 implementation of BouncyCastle.
@@ -39,14 +41,22 @@ public class Pkcs12PbeTest {
 
   private static final String BC = "BC";
 
-  private static final SecureRandom RND = new SecureRandom();
+  private static final SecureRandom RND = RandomUtil.random();
 
   private static final Asn1Oid[] CIPHERS = {
       PkcsOIDs.pbeWithSHAAnd128BitRC4, PkcsOIDs.pbeWithSHAAnd40BitRC4,
       PkcsOIDs.pbeWithSHAAnd3_KeyTripleDES_CBC, PkcsOIDs.pbeWithSHAAnd2_KeyTripleDES_CBC,
       PkcsOIDs.pbeWithSHAAnd128BitRC2_CBC, PkcsOIDs.pbeWithSHAAnd40BitRC2_CBC};
 
-  private static final java.util.Set<Asn1Oid> BC_MAC_DIGESTS = java.util.Set.of(
+  /**
+   * The legacy ciphers RC2 and RC4, which a backend may not support (e.g. OpenSSL 3.x / 4.x
+   * without the legacy provider).
+   */
+  private static final Set<Asn1Oid> LEGACY_CIPHERS = Set.of(
+      PkcsOIDs.pbeWithSHAAnd128BitRC4, PkcsOIDs.pbeWithSHAAnd40BitRC4,
+      PkcsOIDs.pbeWithSHAAnd128BitRC2_CBC, PkcsOIDs.pbeWithSHAAnd40BitRC2_CBC);
+
+  private static final Set<Asn1Oid> BC_MAC_DIGESTS = Set.of(
       OiwOIDs.idSHA1, NistOIDs.id_sha256);
 
   @BeforeClass
@@ -60,6 +70,11 @@ public class Pkcs12PbeTest {
   public void testCiphers() throws Exception {
     char[][] passwords = {"1234".toCharArray(), "pässwörd-€".toCharArray()};
     for (Asn1Oid oid : CIPHERS) {
+      if (LEGACY_CIPHERS.contains(oid) && !isSupported(oid)) {
+        System.out.println("skipped " + oid.getId() + ": not supported by the crypto backend");
+        continue;
+      }
+
       for (char[] password : passwords) {
         for (int dataLen : new int[]{0, 7, 8, 100}) {
           byte[] salt = new byte[20];
@@ -71,7 +86,7 @@ public class Pkcs12PbeTest {
           AlgorithmIdentifier algId = AlgorithmIdentifier.build(oid,
               new PKCS12PBEParams(salt, iterations));
 
-          Cipher ours = Pkcs12Pbe.createCipher(Cipher.ENCRYPT_MODE, password, algId, false, null);
+          Cipher ours = Pkcs12Pbe.createCipher(Cipher.ENCRYPT_MODE, password, algId, false);
           byte[] encrypted = ours.doFinal(data);
 
           SecretKeyFactory kf = SecretKeyFactory.getInstance(oid.getId(), BC);
@@ -80,10 +95,22 @@ public class Pkcs12PbeTest {
               new PBEParameterSpec(salt, iterations));
           Assert.assertArrayEquals(oid.getId(), data, bc.doFinal(encrypted));
 
-          Cipher ours2 = Pkcs12Pbe.createCipher(Cipher.DECRYPT_MODE, password, algId, false, null);
+          Cipher ours2 = Pkcs12Pbe.createCipher(Cipher.DECRYPT_MODE, password, algId, false);
           Assert.assertArrayEquals(oid.getId(), data, ours2.doFinal(encrypted));
         }
       }
+    }
+  }
+
+  /** Returns whether the crypto backend supports the PKCS#12 PBE cipher. */
+  private static boolean isSupported(Asn1Oid oid) throws Exception {
+    AlgorithmIdentifier algId = AlgorithmIdentifier.build(oid,
+        new PKCS12PBEParams(new byte[20], 1000));
+    try {
+      Pkcs12Pbe.createCipher(Cipher.ENCRYPT_MODE, "1234".toCharArray(), algId, false);
+      return true;
+    } catch (NoSuchAlgorithmException e) {
+      return false;
     }
   }
 
@@ -97,7 +124,7 @@ public class Pkcs12PbeTest {
       AlgorithmIdentifier algId = AlgorithmIdentifier.build(oid, new PKCS12PBEParams(salt, 2048));
 
       byte[] encrypted = Pkcs12Pbe.createCipher(Cipher.ENCRYPT_MODE, new char[0], algId,
-          wrongZero, null).doFinal(data);
+          wrongZero).doFinal(data);
 
       Cipher bc = Cipher.getInstance(oid.getId(), BC);
       bc.init(Cipher.DECRYPT_MODE, new PKCS12KeyWithParameters(new char[0], wrongZero, salt, 2048));

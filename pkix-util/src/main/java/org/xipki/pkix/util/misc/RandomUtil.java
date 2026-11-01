@@ -3,31 +3,37 @@
 
 package org.xipki.pkix.util.misc;
 
+import org.xipki.crypto.api.CryptoApiFactory;
+
 import java.security.SecureRandom;
 
 /**
- * Random Util.
+ * Random Util. The random numbers come from the crypto backend
+ * ({@link org.xipki.crypto.api.CryptoApi#getSecureRandom()}).
  *
  * @author Lijun Liao (xipki)
  */
 public class RandomUtil {
-  private static final SecureRandom random = new SecureRandom();
+
+  public static SecureRandom random() {
+    return CryptoApiFactory.get().getSecureRandom();
+  }
 
   public static long nextLong() {
-    return random.nextLong();
+    return random().nextLong();
   }
 
   public static int nextInt() {
-    return random.nextInt();
+    return random().nextInt();
   }
 
   public static int nextInt(int bound) {
-    return random.nextInt(bound);
+    return random().nextInt(bound);
   }
 
   public static byte[] nextBytes(int num) {
     byte[] bytes = new byte[num];
-    random.nextBytes(bytes);
+    random().nextBytes(bytes);
     return bytes;
   }
 

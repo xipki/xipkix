@@ -6,8 +6,11 @@ package org.xipki.pkix.pkcs11;
 import org.xipki.codec.asn1.GenerationException;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.DigestOutputStream;
+import org.xipki.codec.util.StringUtil;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.crypto.core.KeyInfoUtil;
-import org.xipki.pkix.asn1.util.ContentSigner;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.codec.Hex;
@@ -35,10 +38,8 @@ import org.xipki.pkix.sign.SignAlgos;
 import org.xipki.pkix.sign.Signer;
 import org.xipki.pkix.sign.SignerConf;
 import org.xipki.pkix.sign.SignerFactory;
-import org.xipki.pkix.util.DigestOutputStream;
 import org.xipki.crypto.core.EcCurveEnum;
 import org.xipki.codec.exception.InvalidConfException;
-import org.xipki.pkix.util.misc.StringUtil;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -46,7 +47,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -204,17 +204,16 @@ public class P11SignerFactory implements SignerFactory {
           if (compositeKey.sigAlgoSuite() != null) {
             // Composite MLDSA
             signer = P11CompositeMLDSASigner.newInstance(securityFactory,
-                compositeKey, conf, algo, securityFactory.random4Sign(), publicKey);
+                compositeKey, conf, algo, publicKey);
           } else {
             SubjectPublicKeyInfo publicKeyInfo =
                 SubjectPublicKeyInfo.fromPublicKey(compositeKey.publicKey());
-            KemEncapKey encapKey = securityFactory.csrControl().generateKemEncapKey(
-                publicKeyInfo, securityFactory.random4Sign());
+            KemEncapKey encapKey =
+                securityFactory.csrControl().generateKemEncapKey(publicKeyInfo);
             signer = new P11CompositeMLKEMSigner(compositeKey, algo, encapKey);
           }
         } else {
-          signer = P11Signer.newInstance(securityFactory, key,
-              conf, algo, securityFactory.random4Sign(), publicKey);
+          signer = P11Signer.newInstance(securityFactory, key, conf, algo, publicKey);
         }
 
         signers.add(signer);
@@ -285,7 +284,7 @@ public class P11SignerFactory implements SignerFactory {
       return new P12XdhMacSignerBuilder(curve, zz, peerCert, publicKey, certificateChain)
           .createSigner(parallelism);
     } finally {
-      java.util.Arrays.fill(zz, (byte) 0);
+      Arrays.fill(zz, (byte) 0);
     }
   }
 
@@ -312,8 +311,7 @@ public class P11SignerFactory implements SignerFactory {
 
     private P11CompositeMLDSASigner(
         SecurityFactory securityFactory, P11CompositeKey identity, SignerConf conf,
-        CompositeSigSuite algoSuite, byte[] context, SecureRandom rnd)
-        throws XiSecurityException {
+        CompositeSigSuite algoSuite, byte[] context) throws XiSecurityException {
       this.context = context == null ? null : context.clone();
       this.os = new DigestOutputStream(algoSuite.ph().createDigest());
       this.algoSuite = Args.notNull(algoSuite, "algoSuite");
@@ -322,10 +320,10 @@ public class P11SignerFactory implements SignerFactory {
 
       this.pqcSigner = P11Signer.newInstance(securityFactory,
           identity.pqcKey(), conf, algoSuite.pqcVariant().signAlgo(),
-          rnd, identity.pqcKey().publicKey(), algoSuite.label());
+          identity.pqcKey().publicKey(), algoSuite.label());
       this.tradSigner = P11Signer.newInstance(securityFactory,
           identity.tradKey(), conf, algoSuite.tradVariant().signAlgo(),
-          rnd, identity.tradKey().publicKey());
+          identity.tradKey().publicKey());
       this.x509Signer = new MyX509Signer();
     }
 
@@ -366,7 +364,7 @@ public class P11SignerFactory implements SignerFactory {
 
         byte[]  pqcSig =  pqcSigner.x509Signer().getSignature();
         byte[] tradSig = tradSigner.x509Signer().getSignature();
-        return org.xipki.codec.util.Arrays.concatenate(pqcSig, tradSig);
+        return XiArrays.concatenate(pqcSig, tradSig);
       }
 
       @Override
@@ -375,20 +373,19 @@ public class P11SignerFactory implements SignerFactory {
         byte[] m_ = CompositeSigUtil.buildM_(algoSuite, context, digestValue);
         byte[]  pqcSig =  pqcSigner.x509Signer().atomicSign(m_);
         byte[] tradSig = tradSigner.x509Signer().atomicSign(m_);
-        return org.xipki.codec.util.Arrays.concatenate(pqcSig, tradSig);
+        return XiArrays.concatenate(pqcSig, tradSig);
       }
 
     }
 
     static P11CompositeMLDSASigner newInstance(
         SecurityFactory securityFactory, P11CompositeKey key, SignerConf conf,
-        SignAlgo signAlgo, SecureRandom random, PublicKey publicKey)
-        throws XiSecurityException {
+        SignAlgo signAlgo, PublicKey publicKey) throws XiSecurityException {
       if (publicKey != null) {
         key.setPublicKey(publicKey);
       }
       return new P11CompositeMLDSASigner(securityFactory, key, conf,
-          signAlgo.compositeSigAlgoSuite(), null, random);
+          signAlgo.compositeSigAlgoSuite(), null);
     }
 
   }

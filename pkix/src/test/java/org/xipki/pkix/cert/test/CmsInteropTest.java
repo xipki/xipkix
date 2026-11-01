@@ -35,7 +35,7 @@ import org.xipki.codec.asn1.oid.PkcsOIDs;
 import org.xipki.pkix.asn1.x509.Attribute;
 import org.xipki.pkix.cms.CmsAlgorithm;
 import org.xipki.pkix.cms.CmsEnvelopedData;
-import org.xipki.pkix.cms.CmsException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.pkix.cms.CmsRecipient;
 import org.xipki.pkix.cms.CmsSignedData;
 import org.xipki.pkix.cms.CmsSigner;
@@ -181,7 +181,7 @@ public class CmsInteropTest {
     try {
       signer.verify(TestUtil.verifierProvider(kc.keyPair.getPublic(), kc.cert));
       Assert.fail("tampered content must be rejected");
-    } catch (CmsException e) {
+    } catch (PkixException e) {
       Assert.assertTrue(e.getMessage(), e.getMessage().contains("message-digest"));
     }
   }
@@ -325,7 +325,7 @@ public class CmsInteropTest {
         try {
           recipient.decrypt("wrong password".toCharArray());
           Assert.fail("wrong password must be rejected");
-        } catch (CmsException e) {
+        } catch (PkixException e) {
           // expected
         }
       }

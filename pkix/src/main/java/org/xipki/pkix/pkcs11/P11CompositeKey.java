@@ -7,9 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.crypto.core.KeyInfoUtil;
 import org.xipki.codec.util.Args;
-import org.xipki.codec.util.Arrays;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.pkcs11.wrapper.TokenException;
 import org.xipki.crypto.core.KeySpec;
@@ -270,7 +270,7 @@ public class P11CompositeKey {
       throw new InvalidKeySpecException("could not parse the encoded PublicKey", e);
     }
 
-    this.publicKeyData = Arrays.concatenate(pqc_pk, trad_pk);
+    this.publicKeyData = XiArrays.concatenate(pqc_pk, trad_pk);
 
     AlgorithmIdentifier algId = sigAlgoSuite != null ? sigAlgoSuite.algId() : kemAlgoSuite.algId();
     SubjectPublicKeyInfo spki = new SubjectPublicKeyInfo(algId, publicKeyData);

@@ -6,8 +6,9 @@ import org.xipki.codec.asn1.Asn1Oid;
 import org.xipki.codec.asn1.crypto.PrivateKeyInfo;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
 import org.xipki.codec.asn1.oid.KeyPurposeOIDs;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.crypto.core.KeyInfoUtil;
-import org.xipki.pkix.asn1.util.ContentSigner;
 import org.xipki.pkix.asn1.x500.X500Name;
 import org.xipki.pkix.asn1.x509.AuthorityKeyIdentifier;
 import org.xipki.pkix.asn1.x509.BasicConstraints;
@@ -35,9 +36,9 @@ import org.xipki.pkix.cert.X509Cert;
 import org.xipki.pkix.sign.Signer;
 import org.xipki.codec.exception.InvalidConfException;
 import org.xipki.pkix.util.misc.PemEncoder;
+import org.xipki.pkix.util.misc.RandomUtil;
 import org.xipki.pkix.util.conf.Validity;
 import org.xipki.codec.util.IoUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -52,7 +53,6 @@ import java.nio.file.Paths;
 import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.PrivateKey;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -413,8 +413,6 @@ public class GenerateCerts {
 
   }
 
-  private static final SecureRandom random = new SecureRandom();
-
   public static void main(String[] args) {
     boolean argsValid = args != null && args.length == 2;
     if (argsValid) {
@@ -499,7 +497,7 @@ public class GenerateCerts {
       System.out.println("Start generating key and certificates of " + name);
       KeySpec keySpec = KeySpec.ofKeySpec(keyCertConf.keyType);
 
-      KeyPairWithSubjectPublicKeyInfo keyPairInfo = KeyUtil.generateKeyPair2(keySpec, null);
+      KeyPairWithSubjectPublicKeyInfo keyPairInfo = KeyUtil.generateKeyPair2(keySpec);
       SubjectPublicKeyInfo subjectPublicKeyInfo = keyPairInfo.subjectPublicKeyInfo();
       KeyPair keyPair = keyPairInfo.keypair();
 
@@ -513,7 +511,7 @@ public class GenerateCerts {
       KeyStoreAndCert keyStoreAndCert;
 
       if (keyCertConf.issuerName == null) {
-        Signer signer = KeyUtil.getSigner(keyPair.getPrivate(), keyPair.getPublic(), random);
+        Signer signer = KeyUtil.getSigner(keyPair.getPrivate(), keyPair.getPublic());
 
         keyStoreAndCert = generateSelfSignedCertificate(certType, signer.x509Signer(),
             keyPair.getPrivate(), subjectPublicKeyInfo, genParams, subject, validity);
@@ -522,8 +520,7 @@ public class GenerateCerts {
         if (caKeyCertPair == null) {
           throw new InvalidConfException("unknown CA " + keyCertConf.issuerName);
         }
-        Signer signer = KeyUtil.getSigner(
-            caKeyCertPair.key(), caKeyCertPair.cert().publicKey(), random);
+        Signer signer = KeyUtil.getSigner(caKeyCertPair.key(), caKeyCertPair.cert().publicKey());
         keyStoreAndCert = generateCertificate(certType, signer.x509Signer(), caKeyCertPair.cert(),
             keyPair.getPrivate(), subjectPublicKeyInfo, genParams, subject, validity);
       }
@@ -592,7 +589,7 @@ public class GenerateCerts {
       for (SingleKeyCert entry : keyCertConf.entries) {
         KeySpec keySpec = KeySpec.ofKeySpec(entry.keyType);
 
-        KeyPairWithSubjectPublicKeyInfo keyPairInfo = KeyUtil.generateKeyPair2(keySpec, null);
+        KeyPairWithSubjectPublicKeyInfo keyPairInfo = KeyUtil.generateKeyPair2(keySpec);
 
         SubjectPublicKeyInfo subjectPublicKeyInfo = keyPairInfo.subjectPublicKeyInfo();
         KeyPair keyPair = keyPairInfo.keypair();
@@ -604,8 +601,7 @@ public class GenerateCerts {
         KeyStoreAndCert keyStoreAndCert;
 
         if (keyCertConf.issuerName() == null) {
-          Signer signer = KeyUtil.getSigner(
-              keyPair.getPrivate(), keyPair.getPublic(), random, true);
+          Signer signer = KeyUtil.getSigner(keyPair.getPrivate(), keyPair.getPublic(), true);
 
           keyStoreAndCert = generateSelfSignedCertificate(certType, signer.x509Signer(),
               keyPair.getPrivate(), subjectPublicKeyInfo, genParams, subject, validity);
@@ -615,7 +611,7 @@ public class GenerateCerts {
             throw new InvalidConfException("unknown CA " + keyCertConf.issuerName());
           }
           Signer signer = KeyUtil.getSigner(caKeyCertPair.key(),
-              caKeyCertPair.cert().publicKey(), random);
+              caKeyCertPair.cert().publicKey());
           keyStoreAndCert = generateCertificate(certType, signer.x509Signer(), caKeyCertPair.cert(),
               keyPair.getPrivate(), subjectPublicKeyInfo, genParams, subject, validity);
         }
@@ -731,7 +727,7 @@ public class GenerateCerts {
       if (notAfter.isAfter(issuerCert.notAfter())) {
         notAfter = issuerCert.notAfter();
       }
-      serialNumber = new BigInteger(72, random);
+      serialNumber = new BigInteger(72, RandomUtil.random());
       issuer = issuerCert.subject();
     }
 
@@ -807,8 +803,7 @@ public class GenerateCerts {
         throw new InvalidConfException("invalid keyType '" + keyType + "'");
       }
 
-      byte[] keyValue = new byte[keySize / 8];
-      random.nextBytes(keyValue);
+      byte[] keyValue = RandomUtil.nextBytes(keySize / 8);
       return new SecretKeySpec(keyValue, "AES");
     } else {
       throw new InvalidConfException("invalid keyType '" + keyType + "'");

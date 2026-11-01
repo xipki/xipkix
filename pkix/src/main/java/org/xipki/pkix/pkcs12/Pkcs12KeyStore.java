@@ -7,6 +7,7 @@ import org.xipki.codec.asn1.Asn1Encoding;
 import org.xipki.codec.asn1.Asn1OctetString;
 import org.xipki.codec.asn1.Asn1Oid;
 import org.xipki.codec.asn1.Asn1Primitive;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.pkix.asn1.cms.ContentInfo;
 import org.xipki.pkix.asn1.cms.EncryptedContentInfo;
 import org.xipki.pkix.asn1.cms.EncryptedData;
@@ -14,7 +15,6 @@ import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.PBES2Parameters;
 import org.xipki.codec.asn1.crypto.PBKDF2Params;
 import org.xipki.codec.asn1.crypto.PrivateKeyInfo;
-import org.xipki.codec.asn1.oid.AlgorithmOIDs;
 import org.xipki.codec.asn1.oid.ExtensionOIDs;
 import org.xipki.codec.asn1.oid.KeyPurposeOIDs;
 import org.xipki.codec.asn1.oid.MiscOIDs;
@@ -25,7 +25,6 @@ import org.xipki.codec.asn1.oid.PkcsOIDs;
 import org.xipki.pkix.asn1.pkcs12.AuthenticatedSafe;
 import org.xipki.pkix.asn1.pkcs12.CertBag;
 import org.xipki.pkix.asn1.pkcs12.MacData;
-import org.xipki.pkix.asn1.pkcs12.PKCS12PBEParams;
 import org.xipki.pkix.asn1.pkcs12.Pfx;
 import org.xipki.pkix.asn1.pkcs12.SafeBag;
 import org.xipki.pkix.asn1.pkcs12.SafeContents;
@@ -52,7 +51,6 @@ import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -68,9 +66,10 @@ import java.util.Set;
  * trusted-certificate entries.
  * <p>
  * Reading supports the PKCS#12 PBE schemes and PBES2 for keys and certificates, and the
- * PKCS#12 MAC and PBMAC1 (see {@link Pkcs12Pbe}). Writing uses the PBE algorithms given in the
- * constructor, 1024 iterations and an HMAC-SHA1 MAC. A key without certificate is kept, and is
- * written without certificate bag.
+ * PKCS#12 MAC and PBMAC1 (see {@link Pkcs12Pbe}). Writing uses, as the JDK and OpenSSL 3.x by
+ * default, PBES2 with PBKDF2-HMAC-SHA256 and AES-256-CBC for the keys and the certificates,
+ * and the PKCS#12 MAC with HMAC-SHA256 (not PBMAC1, which the JDK cannot read). A key without
+ * certificate is kept, and is written without certificate bag.
  *
  * @author Lijun Liao (xipki)
  */
@@ -201,9 +200,9 @@ public class Pkcs12KeyStore {
   private static final int SALT_SIZE = 20;
 
   /**
-   * The PBE iteration count used when writing a PKCS#12 file, and half the count used for its
-   * integrity MAC. 600,000 is the OWASP figure for PBKDF2-HMAC-SHA256. Due to the problem in
-   * Windows, we use the in Windows maximal allowed value 300,000.
+   * The iteration count used when writing a PKCS#12 file, for PBKDF2 and for the integrity MAC.
+   * 600,000 is the OWASP figure for PBKDF2-HMAC-SHA256. Due to the problem in Windows, we use the
+   * in Windows maximal allowed value 300,000.
    */
   private static final int DEFAULT_STORE_IT_COUNT = 300000;
 
@@ -243,12 +242,6 @@ public class Pkcs12KeyStore {
     }
   }
 
-  private final Asn1Oid keyAlgorithm;
-
-  private final Asn1Oid certAlgorithm;
-
-  private final SecureRandom random;
-
   /**
    * alias to entry, in insertion order.
    */
@@ -265,14 +258,6 @@ public class Pkcs12KeyStore {
   private Map<X500Name, CertInfo> certsBySubject;
 
   public Pkcs12KeyStore() {
-    this(PkcsOIDs.pbeWithSHAAnd3_KeyTripleDES_CBC, PkcsOIDs.pbeWithSHAAnd3_KeyTripleDES_CBC,
-        new SecureRandom());
-  }
-
-  public Pkcs12KeyStore(Asn1Oid keyAlgorithm, Asn1Oid certAlgorithm, SecureRandom random) {
-    this.keyAlgorithm = keyAlgorithm;
-    this.certAlgorithm = certAlgorithm;
-    this.random = random;
   }
 
   public static Pkcs12KeyStore fromStream(InputStream stream, char[] password) throws IOException {
@@ -504,7 +489,7 @@ public class Pkcs12KeyStore {
 
       byte[] res = Pkcs12Pbe.calculatePbeMac(mac.getAlgorithmId(), macData.macSalt(),
           macData.iterations(), password, false, data);
-      if (org.xipki.codec.util.Arrays.constantTimeAreEqual(res, expected)) {
+      if (XiArrays.constantTimeAreEqual(res, expected)) {
         return false;
       }
 
@@ -512,7 +497,7 @@ public class Pkcs12KeyStore {
         // try with the incorrect encoding of the empty password
         res = Pkcs12Pbe.calculatePbeMac(mac.getAlgorithmId(), macData.macSalt(),
             macData.iterations(), password, true, data);
-        if (org.xipki.codec.util.Arrays.constantTimeAreEqual(res, expected)) {
+        if (XiArrays.constantTimeAreEqual(res, expected)) {
           return true;
         }
       }
@@ -632,7 +617,7 @@ public class Pkcs12KeyStore {
       }
       attrs.add(Attribute.ofFriendlyName(e.getKey()));
 
-      AlgorithmIdentifier algId = pbeAlgorithm(keyAlgorithm);
+      AlgorithmIdentifier algId = pbes2Algorithm();
       byte[] encryptedKey = crypt(Cipher.ENCRYPT_MODE, algId, password, false,
           entry.key.getEncoded());
       keyBags.add(new SafeBag(PkcsOIDs.pkcs8ShroudedKeyBag,
@@ -675,7 +660,7 @@ public class Pkcs12KeyStore {
     }
 
     // keys: SafeContents in data, certificates: SafeContents in encryptedData
-    AlgorithmIdentifier certAlgId = pbeAlgorithm(certAlgorithm);
+    AlgorithmIdentifier certAlgId = pbes2Algorithm();
     byte[] encryptedCerts = crypt(Cipher.ENCRYPT_MODE, certAlgId, password, false,
         new SafeContents(certBags).getEncoded(Asn1Encoding.DER));
 
@@ -688,7 +673,7 @@ public class Pkcs12KeyStore {
 
     // MAC
     byte[] macSalt = randomSalt();
-    AlgorithmIdentifier macAlgId = AlgorithmIdentifier.ofNullParams(AlgorithmOIDs.id_sha1);
+    AlgorithmIdentifier macAlgId = AlgorithmIdentifier.ofNullParams(NistOIDs.id_sha256);
     MacData macData;
     try {
       byte[] mac = Pkcs12Pbe.calculatePbeMac(macAlgId, macSalt, ITERATIONS, password, false,
@@ -707,13 +692,23 @@ public class Pkcs12KeyStore {
     return new SafeBag(PkcsOIDs.certBag, certBag.toAsn1Primitive(), attrs);
   }
 
-  private AlgorithmIdentifier pbeAlgorithm(Asn1Oid algorithm) {
-    return AlgorithmIdentifier.build(algorithm, new PKCS12PBEParams(randomSalt(), ITERATIONS));
+  /**
+   * Returns PBES2 with PBKDF2-HMAC-SHA256 and AES-256-CBC, with a random salt and IV.
+   */
+  private AlgorithmIdentifier pbes2Algorithm() {
+    byte[] iv = new byte[16];
+    crypto.getSecureRandom().nextBytes(iv);
+    AlgorithmIdentifier kdf = AlgorithmIdentifier.build(PkcsOIDs.id_PBKDF2,
+        new PBKDF2Params(randomSalt(), ITERATIONS,
+            AlgorithmIdentifier.ofNullParams(PkcsOIDs.id_hmacWithSHA256)));
+    AlgorithmIdentifier enc = new AlgorithmIdentifier(NistOIDs.id_aes256_CBC,
+        new Asn1OctetString(iv));
+    return AlgorithmIdentifier.build(PkcsOIDs.id_PBES2, new PBES2Parameters(kdf, enc));
   }
 
   private byte[] randomSalt() {
     byte[] salt = new byte[SALT_SIZE];
-    random.nextBytes(salt);
+    crypto.getSecureRandom().nextBytes(salt);
     return salt;
   }
 
@@ -728,7 +723,7 @@ public class Pkcs12KeyStore {
     try {
       Cipher cipher;
       if (algorithm.on(PkcsOIDs.pkcs_12PbeIds)) {
-        cipher = Pkcs12Pbe.createCipher(mode, password, algId, wrongZero, random);
+        cipher = Pkcs12Pbe.createCipher(mode, password, algId, wrongZero);
       } else if (algorithm.equals(PkcsOIDs.id_PBES2)) {
         cipher = pbes2Cipher(mode, password, algId);
       } else {
@@ -771,10 +766,11 @@ public class Pkcs12KeyStore {
     String transformation = (scheme[1] != null) ? (String) scheme[1] : encOid;
     String keyAlgorithm = (scheme[2] != null) ? (String) scheme[2] : encOid;
     SecretKeySpec key = new SecretKeySpec(keyBytes, keyAlgorithm);
-    org.xipki.codec.util.Arrays.clear(keyBytes);
+    XiArrays.clear(keyBytes);
 
     Cipher cipher = crypto.newCipher(transformation);
-    cipher.init(mode, key, new IvParameterSpec(((Asn1OctetString) encParams).getOctets()), random);
+    cipher.init(mode, key, new IvParameterSpec(((Asn1OctetString) encParams).getOctets()),
+        crypto.getSecureRandom());
     return cipher;
   }
 

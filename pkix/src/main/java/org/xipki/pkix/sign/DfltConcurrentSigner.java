@@ -5,7 +5,7 @@ package org.xipki.pkix.sign;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xipki.pkix.asn1.util.ContentSigner;
+import org.xipki.codec.crypto.ContentSigner;
 import org.xipki.codec.util.Args;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.pkix.exception.NoIdleSignerException;

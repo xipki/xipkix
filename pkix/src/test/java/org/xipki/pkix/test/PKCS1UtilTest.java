@@ -8,8 +8,7 @@ import org.junit.Test;
 import org.xipki.crypto.core.HashAlgo;
 import org.xipki.crypto.core.XiSecurityException;
 import org.xipki.crypto.core.Pkcs1Util;
-
-import java.security.SecureRandom;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 /**
  * Test for {@link Pkcs1Util}.
@@ -24,7 +23,7 @@ public class PKCS1UtilTest {
     byte[] mHash = ha.hash("hello world".getBytes());
     int modulusBits = 2048;
     int sLen = ha.length();
-    byte[] em = Pkcs1Util.EMSA_PSS_ENCODE(ha, mHash, ha, sLen, modulusBits, new SecureRandom());
+    byte[] em = Pkcs1Util.EMSA_PSS_ENCODE(ha, mHash, ha, sLen, modulusBits, RandomUtil.random());
     boolean valid = Pkcs1Util.EMSA_PSS_DECODE(ha, mHash, em, sLen, modulusBits);
     Assert.assertTrue("PSS encode-then-decode", valid);
   }
@@ -35,7 +34,7 @@ public class PKCS1UtilTest {
     byte[] mHash = ha.hash("hello world".getBytes());
     int modulusBits = 2048;
     int sLen = ha.length();
-    byte[] em = Pkcs1Util.EMSA_PSS_ENCODE(ha, mHash, ha, sLen, modulusBits, new SecureRandom());
+    byte[] em = Pkcs1Util.EMSA_PSS_ENCODE(ha, mHash, ha, sLen, modulusBits, RandomUtil.random());
     boolean valid = Pkcs1Util.EMSA_PSS_DECODE(ha, mHash, em, sLen, modulusBits);
     Assert.assertTrue("PSS encode-then-decode", valid);
   }

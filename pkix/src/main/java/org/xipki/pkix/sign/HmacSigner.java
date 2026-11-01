@@ -4,7 +4,7 @@
 package org.xipki.pkix.sign;
 
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
-import org.xipki.pkix.asn1.util.ContentSigner;
+import org.xipki.codec.crypto.ContentSigner;
 import org.xipki.codec.util.Args;
 import org.xipki.crypto.api.CryptoApi;
 import org.xipki.crypto.api.CryptoApiFactory;

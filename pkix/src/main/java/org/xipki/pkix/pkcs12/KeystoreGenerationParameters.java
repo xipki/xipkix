@@ -5,8 +5,6 @@ package org.xipki.pkix.pkcs12;
 
 import org.xipki.codec.util.Args;
 
-import java.security.SecureRandom;
-
 /**
  * Keystore Generation Parameters.
  *
@@ -16,20 +14,10 @@ public class KeystoreGenerationParameters {
 
   private final char[] password;
 
-  private SecureRandom random;
-
   private Boolean unsigned;
 
   public KeystoreGenerationParameters(char[] password) {
     this.password = Args.notNull(password, "password");
-  }
-
-  public SecureRandom random() {
-    return random;
-  }
-
-  public void setRandom(SecureRandom random) {
-    this.random = random;
   }
 
   public char[] password() {

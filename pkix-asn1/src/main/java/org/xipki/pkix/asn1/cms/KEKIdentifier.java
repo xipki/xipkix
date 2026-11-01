@@ -57,7 +57,7 @@ public class KEKIdentifier extends Asn1Encodable {
                 : OtherKeyAttribute.fromAsn1(seq.getSequenceAt(index++));
 
     if (index != size) {
-      throw CodecException.SEQ_WITH_UNEXPECTED_ELEMENTS;
+      throw CodecException.seqWithUnexpectedElements();
     }
 
     return new KEKIdentifier(keyIdentifier, date, other);

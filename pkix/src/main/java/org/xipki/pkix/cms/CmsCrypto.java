@@ -8,6 +8,7 @@ import org.xipki.codec.asn1.Asn1OctetString;
 import org.xipki.codec.asn1.Asn1Oid;
 import org.xipki.codec.asn1.Asn1Primitive;
 import org.xipki.codec.asn1.crypto.GCMParameters;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.pkix.asn1.cms.ecc.EccCmsSharedInfo;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.PBKDF2Params;
@@ -18,13 +19,14 @@ import org.xipki.codec.asn1.oid.OiwOIDs;
 import org.xipki.codec.asn1.oid.PkcsOIDs;
 import org.xipki.codec.asn1.oid.SecOIDs;
 import org.xipki.codec.asn1.oid.X9OIDs;
-import org.xipki.codec.util.Arrays;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.api.CryptoApi;
 import org.xipki.crypto.api.CryptoApiFactory;
+import org.xipki.pkix.exception.PkixException;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
+import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
@@ -32,12 +34,14 @@ import javax.crypto.spec.OAEPParameterSpec;
 import javax.crypto.spec.PSource;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.GeneralSecurityException;
+import java.security.Key;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.MGF1ParameterSpec;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -132,26 +136,26 @@ final class CmsCrypto {
   private CmsCrypto() {
   }
 
-  static SecureRandom random(SecureRandom random) {
-    return crypto.getSecureRandom(random);
+  static SecureRandom random() {
+    return crypto.getSecureRandom();
   }
 
-  static PublicKey publicKey(SubjectPublicKeyInfo publicKeyInfo) throws CmsException {
+  static PublicKey publicKey(SubjectPublicKeyInfo publicKeyInfo) throws PkixException {
     try {
       return crypto.getPublicKey(publicKeyInfo);
     } catch (GeneralSecurityException | RuntimeException e) {
-      throw new CmsException("invalid public key: " + e.getMessage(), e);
+      throw new PkixException("invalid public key: " + e.getMessage(), e);
     }
   }
 
   // ---------------- digest and signature ----------------
 
-  static byte[] digest(AlgorithmIdentifier digestAlg, byte[] data) throws CmsException {
+  static byte[] digest(AlgorithmIdentifier digestAlg, byte[] data) throws PkixException {
     try {
       MessageDigest md = crypto.newMessageDigest(crypto.getDigestName(digestAlg));
       return md.digest(data);
     } catch (GeneralSecurityException | RuntimeException e) {
-      throw new CmsException("unsupported digest algorithm "
+      throw new PkixException("unsupported digest algorithm "
           + digestAlg.getAlgorithm().getId() + ": " + e.getMessage(), e);
     }
   }
@@ -162,14 +166,14 @@ final class CmsCrypto {
    * algorithm to verify the signature.
    */
   static AlgorithmIdentifier signatureAlgorithm(
-      AlgorithmIdentifier digestAlg, AlgorithmIdentifier signatureAlg) throws CmsException {
+      AlgorithmIdentifier digestAlg, AlgorithmIdentifier signatureAlg) throws PkixException {
     if (!PkcsOIDs.rsaEncryption.equals(signatureAlg.getAlgorithm())) {
       return signatureAlg;
     }
 
     Asn1Oid oid = RSA_SIG_ALGS.get(digestAlg.getAlgorithm());
     if (oid == null) {
-      throw new CmsException("unsupported digest algorithm for rsaEncryption: "
+      throw new PkixException("unsupported digest algorithm for rsaEncryption: "
           + digestAlg.getAlgorithm().getId());
     }
     return AlgorithmIdentifier.ofNullParams(oid);
@@ -190,10 +194,10 @@ final class CmsCrypto {
 
   // ---------------- content encryption ----------------
 
-  static EncryptedContent encryptContent(Asn1Oid encAlg, byte[] content, SecureRandom random)
-      throws CmsException {
+  static EncryptedContent encryptContent(Asn1Oid encAlg, byte[] content)
+      throws PkixException {
     Object[] params = contentAlgParams(encAlg);
-    random = random(random);
+    SecureRandom random = random();
     int keySize = (int) params[1];
     byte[] iv = new byte[(int) params[2]];
     random.nextBytes(iv);
@@ -201,11 +205,11 @@ final class CmsCrypto {
     byte[] cek;
     if (PkcsOIDs.des_EDE3_CBC.equals(encAlg)) {
       try {
-        javax.crypto.KeyGenerator kg = crypto.newKeyGenerator("DESede");
+        KeyGenerator kg = crypto.newKeyGenerator("DESede");
         kg.init(168, random);
         cek = kg.generateKey().getEncoded();
       } catch (GeneralSecurityException e) {
-        throw new CmsException("could not generate DESede key: " + e.getMessage(), e);
+        throw new PkixException("could not generate DESede key: " + e.getMessage(), e);
       }
     } else {
       cek = new byte[keySize / 8];
@@ -224,12 +228,12 @@ final class CmsCrypto {
       // for GCM, the authentication tag is appended to the ciphertext.
       return new EncryptedContent(algId, cek, cipher.doFinal(content));
     } catch (GeneralSecurityException e) {
-      throw new CmsException("could not encrypt content: " + e.getMessage(), e);
+      throw new PkixException("could not encrypt content: " + e.getMessage(), e);
     }
   }
 
   static byte[] decryptContent(AlgorithmIdentifier encAlgId, byte[] cek, byte[] encryptedContent)
-      throws CmsException {
+      throws PkixException {
     Asn1Oid encAlg = encAlgId.getAlgorithm();
     Object[] params = contentAlgParams(encAlg);
     try {
@@ -245,14 +249,14 @@ final class CmsCrypto {
       cipher.init(Cipher.DECRYPT_MODE, contentKey(encAlg, cek), spec);
       return cipher.doFinal(encryptedContent);
     } catch (GeneralSecurityException | CodecException | RuntimeException e) {
-      throw new CmsException("could not decrypt content: " + e.getMessage(), e);
+      throw new PkixException("could not decrypt content: " + e.getMessage(), e);
     }
   }
 
-  private static Object[] contentAlgParams(Asn1Oid encAlg) throws CmsException {
+  private static Object[] contentAlgParams(Asn1Oid encAlg) throws PkixException {
     Object[] params = CONTENT_ALGS.get(encAlg);
     if (params == null) {
-      throw new CmsException("unsupported content encryption algorithm " + encAlg.getId());
+      throw new PkixException("unsupported content encryption algorithm " + encAlg.getId());
     }
     return params;
   }
@@ -264,32 +268,32 @@ final class CmsCrypto {
   // ---------------- key transport ----------------
 
   static byte[] keyTransEncrypt(AlgorithmIdentifier keyEncAlg, PublicKey publicKey,
-                                byte[] cek, SecureRandom random) throws CmsException {
+                                byte[] cek) throws PkixException {
     try {
-      Cipher cipher = keyTransCipher(Cipher.ENCRYPT_MODE, keyEncAlg, publicKey, random);
+      Cipher cipher = keyTransCipher(Cipher.ENCRYPT_MODE, keyEncAlg, publicKey);
       return cipher.doFinal(cek);
     } catch (GeneralSecurityException | CodecException e) {
-      throw new CmsException("could not encrypt the content-encryption key: "
+      throw new PkixException("could not encrypt the content-encryption key: "
           + e.getMessage(), e);
     }
   }
 
   static byte[] keyTransDecrypt(AlgorithmIdentifier keyEncAlg, PrivateKey privateKey,
-                                byte[] encryptedKey) throws CmsException {
+                                byte[] encryptedKey) throws PkixException {
     try {
-      Cipher cipher = keyTransCipher(Cipher.DECRYPT_MODE, keyEncAlg, privateKey, null);
+      Cipher cipher = keyTransCipher(Cipher.DECRYPT_MODE, keyEncAlg, privateKey);
       return cipher.doFinal(encryptedKey);
     } catch (GeneralSecurityException | CodecException e) {
-      throw new CmsException("could not decrypt the content-encryption key: "
+      throw new PkixException("could not decrypt the content-encryption key: "
           + e.getMessage(), e);
     }
   }
 
   private static Cipher keyTransCipher(int mode, AlgorithmIdentifier keyEncAlg,
-                                       java.security.Key key, SecureRandom random)
+                                       Key key)
       throws GeneralSecurityException, CodecException {
     Asn1Oid oid = keyEncAlg.getAlgorithm();
-    random = random(random);
+    SecureRandom random = random();
     if (PkcsOIDs.rsaEncryption.equals(oid)) {
       Cipher cipher = crypto.newCipher("RSA/ECB/PKCS1Padding");
       cipher.init(mode, key, random);
@@ -338,15 +342,15 @@ final class CmsCrypto {
    */
   static byte[] keyAgreeWrap(
       int mode, Asn1Oid keyAgreeAlg, AlgorithmIdentifier wrapAlg, PrivateKey privateKey,
-      PublicKey peerPublicKey, byte[] ukm, byte[] key, SecureRandom random) throws CmsException {
+      PublicKey peerPublicKey, byte[] ukm, byte[] key) throws PkixException {
     if (!isEcdhKdf(keyAgreeAlg)) {
-      throw new CmsException("unsupported key agreement algorithm " + keyAgreeAlg.getId());
+      throw new PkixException("unsupported key agreement algorithm " + keyAgreeAlg.getId());
     }
 
     Asn1Oid wrapOid = wrapAlg.getAlgorithm();
     Integer wrapKeySize = WRAP_KEY_SIZES.get(wrapOid);
     if (wrapKeySize == null) {
-      throw new CmsException("unsupported key wrap algorithm " + wrapOid.getId());
+      throw new PkixException("unsupported key wrap algorithm " + wrapOid.getId());
     }
 
     // RFC 5753, section 7.2: ECC-CMS-SharedInfo, keySize in bits as 4-byte big-endian.
@@ -356,24 +360,24 @@ final class CmsCrypto {
 
     try {
       KeyAgreement agreement = crypto.newKeyAgreement("ECDH");
-      agreement.init(privateKey, random(random));
+      agreement.init(privateKey, random());
       agreement.doPhase(peerPublicKey, true);
       byte[] z = agreement.generateSecret();
       byte[] kekBytes = x963Kdf(ECDH_KDF_ALGS.get(keyAgreeAlg), z, sharedInfo, wrapKeySize / 8);
-      Arrays.clear(z);
+      XiArrays.clear(z);
       SecretKey kek = new SecretKeySpec(kekBytes, "AES");
-      Arrays.clear(kekBytes);
+      XiArrays.clear(kekBytes);
 
       Cipher cipher = crypto.newCipher(wrapOid.getId());
       if (mode == Cipher.WRAP_MODE) {
-        cipher.init(Cipher.WRAP_MODE, kek, random(random));
+        cipher.init(Cipher.WRAP_MODE, kek, random());
         return cipher.wrap(new SecretKeySpec(key, "AES"));
       } else {
         cipher.init(Cipher.UNWRAP_MODE, kek);
         return cipher.unwrap(key, "AES", Cipher.SECRET_KEY).getEncoded();
       }
     } catch (GeneralSecurityException | RuntimeException e) {
-      throw new CmsException("key agreement failed: " + e.getMessage(), e);
+      throw new PkixException("key agreement failed: " + e.getMessage(), e);
     }
   }
 
@@ -419,12 +423,12 @@ final class CmsCrypto {
   }
 
   static byte[] pbkdf2(char[] password, PBKDF2Params params, int keySizeInBits)
-      throws CmsException {
+      throws PkixException {
     try {
       return crypto.pbkdf2(params.getPrf(), password, params.salt(),
           params.iterationCount(), keySizeInBits / 8);
     } catch (GeneralSecurityException e) {
-      throw new CmsException("could not derive key from password: " + e.getMessage(), e);
+      throw new PkixException("could not derive key from password: " + e.getMessage(), e);
     }
   }
 
@@ -432,7 +436,7 @@ final class CmsCrypto {
    * Wraps or unwraps the content-encryption key with the RFC 3211 key wrap.
    */
   static byte[] rfc3211Wrap(int mode, Asn1Oid kekAlg, byte[] kek, byte[] iv, byte[] key)
-      throws CmsException {
+      throws PkixException {
     String keyAlg = PkcsOIDs.des_EDE3_CBC.equals(kekAlg) ? "DESede" : "AES";
     try {
       SecretKeySpec kekKey = new SecretKeySpec(kek, keyAlg);
@@ -446,7 +450,7 @@ final class CmsCrypto {
         throw new IllegalArgumentException("invalid mode " + mode);
       }
     } catch (GeneralSecurityException | RuntimeException e) {
-      throw new CmsException("could not process the content-encryption key: "
+      throw new PkixException("could not process the content-encryption key: "
           + e.getMessage(), e);
     }
   }
@@ -468,15 +472,15 @@ final class CmsCrypto {
     System.arraycopy(key, 0, formatted, 4, key.length);
     if (formattedLen > len) {
       byte[] padding = new byte[formattedLen - len];
-      random(null).nextBytes(padding);
+      random().nextBytes(padding);
       System.arraycopy(padding, 0, formatted, len, padding.length);
     }
 
     cipher.init(Cipher.ENCRYPT_MODE, kek, new IvParameterSpec(iv));
     byte[] c1 = cipher.doFinal(formatted);
-    Arrays.clear(formatted);
+    XiArrays.clear(formatted);
 
-    byte[] iv2 = java.util.Arrays.copyOfRange(c1, c1.length - blockSize, c1.length);
+    byte[] iv2 = Arrays.copyOfRange(c1, c1.length - blockSize, c1.length);
     cipher.init(Cipher.ENCRYPT_MODE, kek, new IvParameterSpec(iv2));
     return cipher.doFinal(c1);
   }
@@ -490,7 +494,7 @@ final class CmsCrypto {
     }
 
     // 1. decrypt the last block with the n-1'th block as IV
-    byte[] ivLast = java.util.Arrays.copyOfRange(wrapped, n - 2 * blockSize, n - blockSize);
+    byte[] ivLast = Arrays.copyOfRange(wrapped, n - 2 * blockSize, n - blockSize);
     cipher.init(Cipher.DECRYPT_MODE, kek, new IvParameterSpec(ivLast));
     byte[] lastInner = cipher.doFinal(wrapped, n - blockSize, blockSize);
 
@@ -508,7 +512,7 @@ final class CmsCrypto {
 
     int keyLen = formatted[0] & 0xFF;
     if (keyLen < 3 || 4 + keyLen > formatted.length) {
-      Arrays.clear(formatted);
+      XiArrays.clear(formatted);
       throw new GeneralSecurityException("wrapped key corrupted");
     }
 
@@ -518,12 +522,12 @@ final class CmsCrypto {
     }
 
     if (check != 0) {
-      Arrays.clear(formatted);
+      XiArrays.clear(formatted);
       throw new GeneralSecurityException("wrapped key fails checksum");
     }
 
-    byte[] key = java.util.Arrays.copyOfRange(formatted, 4, 4 + keyLen);
-    Arrays.clear(formatted);
+    byte[] key = Arrays.copyOfRange(formatted, 4, 4 + keyLen);
+    XiArrays.clear(formatted);
     return key;
   }
 

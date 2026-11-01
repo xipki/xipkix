@@ -5,13 +5,15 @@ package org.xipki.pkix.pkcs12;
 
 import org.xipki.codec.asn1.crypto.GCMParameters;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
-import org.xipki.pkix.asn1.util.ContentSigner;
+import org.xipki.codec.crypto.ContentSigner;
 import org.xipki.codec.util.Args;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.crypto.api.CryptoApi;
 import org.xipki.crypto.api.CryptoApiFactory;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.crypto.core.XiSecurityException;
 import org.xipki.pkix.sign.Signer;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -23,7 +25,6 @@ import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
-import java.security.SecureRandom;
 import java.util.Arrays;
 
 /**
@@ -66,8 +67,6 @@ public class AESGmacContentSigner implements Signer {
 
   private final byte[] nonce = new byte[nonceLen];
 
-  private final SecureRandom random;
-
   private final SignAlgo signAlgo;
 
   private final Cipher cipher;
@@ -97,11 +96,10 @@ public class AESGmacContentSigner implements Signer {
     }
 
     this.cipher = cipher0;
-    this.random = new SecureRandom();
 
     final GCMParameters params = new GCMParameters(nonce, tagByteLen);
     this.x509SigAlgIdTemplate = AlgorithmIdentifier.build(signAlgo.oid(), params).getEncoded();
-    this.nonceOffset = org.xipki.codec.util.Arrays.getIndex(x509SigAlgIdTemplate, nonce);
+    this.nonceOffset = XiArrays.getIndex(x509SigAlgIdTemplate, nonce);
 
     String message = "oid and singingKey do not match";
     int keyLen = signingKey.getEncoded().length;
@@ -132,7 +130,7 @@ public class AESGmacContentSigner implements Signer {
   } // method AESGmacContentSigner
 
   private void initCipher() {
-    random.nextBytes(nonce);
+    RandomUtil.random().nextBytes(nonce);
     try {
       cipher.init(Cipher.ENCRYPT_MODE, signingKey, new GCMParameterSpec(tagByteLen << 3, nonce));
     } catch (InvalidKeyException | InvalidAlgorithmParameterException ex) {

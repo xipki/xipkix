@@ -7,6 +7,7 @@ import org.xipki.codec.asn1.GenerationException;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
 import org.xipki.codec.Base64;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.crypto.core.KeyInfoUtil;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.core.KeySpec;
@@ -20,7 +21,6 @@ import org.xipki.pkix.sign.SignerFactory;
 import org.xipki.crypto.core.EcCurveEnum;
 import org.xipki.codec.exception.InvalidConfException;
 import org.xipki.pkix.util.io.XipkiIoUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 import org.xipki.pkix.util.password.PasswordResolverException;
 import org.xipki.pkix.util.password.Passwords;
 
@@ -112,12 +112,11 @@ public class P12SignerFactory implements SignerFactory {
               keypairWithCert.x509CertChain()[0].subjectPublicKeyInfo();
           P12KemMacContentSignerBuilder signerBuilder =
               new P12KemMacContentSignerBuilder(keypairWithCert,
-                  securityFactory.csrControl().generateKemEncapKey(
-                      publicKeyInfo, securityFactory.random4Sign()));
+                  securityFactory.csrControl().generateKemEncapKey(publicKeyInfo));
           return signerBuilder.createSigner(sigAlgo, parallelism);
         } else {
           P12ContentSignerBuilder signerBuilder = new P12ContentSignerBuilder(keypairWithCert);
-          return signerBuilder.createSigner(sigAlgo, parallelism, securityFactory.random4Sign());
+          return signerBuilder.createSigner(sigAlgo, parallelism);
         }
       }
     } catch (XiSecurityException | IOException | InvalidConfException | CodecException ex) {

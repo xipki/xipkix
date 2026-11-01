@@ -4,7 +4,8 @@
 package org.xipki.pkix.util.misc;
 
 import org.xipki.codec.Base64;
-import org.xipki.codec.util.Arrays;
+import org.xipki.codec.util.StringUtil;
+import org.xipki.codec.util.XiArrays;
 
 /**
  * Pem Encoder.
@@ -84,7 +85,7 @@ public class PemEncoder {
 
   public static byte[] encode(byte[] data, PemLabel pemLabel) {
     byte[] base64 = Base64.encodeToPemByte(data);
-    return Arrays.concatenate(pemLabel.prefix, base64, pemLabel.postfix);
+    return XiArrays.concatenate(pemLabel.prefix, base64, pemLabel.postfix);
   }
 
 }

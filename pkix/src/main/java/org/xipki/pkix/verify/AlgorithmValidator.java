@@ -13,7 +13,6 @@ import org.xipki.crypto.core.SignAlgo;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,8 +29,6 @@ public class AlgorithmValidator {
   public static final AlgorithmValidator INSTANCE;
 
   private final Set<SignAlgo> algos;
-
-  private final Set<String> algoNames;
 
   static {
     List<SignAlgo> secureAlgos = new ArrayList<>(SignAlgo.values().length);
@@ -74,11 +71,6 @@ public class AlgorithmValidator {
    */
   public AlgorithmValidator(Collection<SignAlgo> algos) {
     this.algos = Set.copyOf(algos);
-    Set<String> names = new HashSet<>();
-    for (SignAlgo m : algos) {
-      names.add(m.jceName());
-    }
-    this.algoNames = Collections.unmodifiableSet(names);
   }
 
   public boolean isAlgorithmPermitted(AlgorithmIdentifier algId) {

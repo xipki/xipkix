@@ -6,7 +6,7 @@ package org.xipki.pkix.scep.message;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.pkix.cms.CmsEnvelopedData;
-import org.xipki.pkix.cms.CmsException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.pkix.cms.CmsRecipient;
 import org.xipki.pkix.cert.X509Cert;
 
@@ -55,7 +55,7 @@ public final class EnvelopedDataDecryptor {
       if (recipient != null && recipient.getType() == CmsRecipient.Type.KEY_TRANS) {
         try {
           return recipient.decrypt(m.privKey);
-        } catch (CmsException ex) {
+        } catch (PkixException ex) {
           throw new CodecException("could not decrypt the envelopedData", ex);
         }
       }

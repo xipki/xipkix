@@ -59,8 +59,7 @@ public class SMIMECapability extends Asn1Encodable {
    */
   public static final Asn1Oid preferSignedData = PkcsOIDs.preferSignedData;
   public static final Asn1Oid canNotDecryptAny = PkcsOIDs.canNotDecryptAny;
-  public static final Asn1Oid sMIMECapabilitiesVersions =
-      PkcsOIDs.sMIMECapabilitiesVersions;
+  public static final Asn1Oid sMIMECapabilitiesVersions = PkcsOIDs.sMIMECapabilitiesVersions;
 
   /**
    * encryption algorithms preferences

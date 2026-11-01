@@ -3,6 +3,7 @@
 
 package org.xipki.pkix.auth;
 
+import org.xipki.codec.util.StringUtil;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
@@ -14,7 +15,6 @@ import org.xipki.pkix.cert.X509Cert;
 import org.xipki.pkix.util.X509Util;
 import org.xipki.pkix.util.conf.FileOrBinary;
 import org.xipki.pkix.util.io.XipkiIoUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 import org.xipki.pkix.util.password.PasswordResolverException;
 import org.xipki.pkix.util.password.Passwords;
 

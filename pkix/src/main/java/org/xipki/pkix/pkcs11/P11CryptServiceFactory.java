@@ -5,10 +5,10 @@ package org.xipki.pkix.pkcs11;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.pkcs11.wrapper.TokenException;
 import org.xipki.crypto.core.XiSecurityException;
 import org.xipki.codec.exception.InvalidConfException;
-import org.xipki.pkix.util.misc.StringUtil;
 
 import java.io.Closeable;
 import java.io.File;

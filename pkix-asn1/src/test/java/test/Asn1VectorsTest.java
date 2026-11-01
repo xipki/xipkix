@@ -11,6 +11,8 @@ import org.xipki.codec.asn1.Asn1Sequence;
 import org.xipki.pkix.asn1.cmp.PKIBody;
 import org.xipki.pkix.asn1.cmp.PKIMessage;
 import org.xipki.pkix.asn1.cms.ContentInfo;
+import org.xipki.pkix.asn1.cms.EncryptedData;
+import org.xipki.pkix.asn1.cms.EnvelopedData;
 import org.xipki.pkix.asn1.cms.SignedData;
 import org.xipki.pkix.asn1.cms.SignerInfo;
 import org.xipki.codec.asn1.Asn1Oid;
@@ -347,9 +349,9 @@ public class Asn1VectorsTest {
       if (CmsOIDs.signedData.equals(contentType)) {
         return e -> SignedData.fromAsn1(Asn1Sequence.fromEncoded(e));
       } else if (CmsOIDs.envelopedData.equals(contentType)) {
-        return e -> org.xipki.pkix.asn1.cms.EnvelopedData.fromAsn1(Asn1Sequence.fromEncoded(e));
+        return e -> EnvelopedData.fromAsn1(Asn1Sequence.fromEncoded(e));
       } else if (CmsOIDs.encryptedData.equals(contentType)) {
-        return e -> org.xipki.pkix.asn1.cms.EncryptedData.fromAsn1(Asn1Sequence.fromEncoded(e));
+        return e -> EncryptedData.fromAsn1(Asn1Sequence.fromEncoded(e));
       } else if (CmsOIDs.authEnvelopedData.equals(contentType)
           || CmsOIDs.digestedData.equals(contentType)) {
         // AuthEnvelopedData and DigestedData are not implemented

@@ -8,7 +8,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.pkix.asn1.x500.X500Name;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.codec.json.JsonParser;
@@ -31,7 +31,6 @@ import org.xipki.pkix.verify.XDHContentVerifierProvider;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -53,8 +52,6 @@ public class P11DhPopSignerTest {
       + "\"numSessions\":4, \"includeSlots\":[{\"index\":0}],"
       + "\"nativeLibraries\":[{\"path\":\"xihsm:mem:vendor=xihsm\"}],"
       + "\"passwordSets\":[{\"passwords\":[\"123456\"]}]}]}";
-
-  private static final SecureRandom RND = new SecureRandom();
 
   private static final byte[] DATA = "certificate request".getBytes(StandardCharsets.US_ASCII);
 
@@ -86,14 +83,14 @@ public class P11DhPopSignerTest {
 
   private static void testDhPop(KeySpec keySpec, SignAlgo popAlgo) throws Exception {
     // the CA: a static DH key, certified by an Ed25519 key
-    KeyPair issuerKp = KeyUtil.generateKeyPair(KeySpec.ED25519, RND);
-    KeyPair caDhKp = KeyUtil.generateKeyPair(keySpec, RND);
+    KeyPair issuerKp = KeyUtil.generateKeyPair(KeySpec.ED25519);
+    KeyPair caDhKp = KeyUtil.generateKeyPair(keySpec);
     Instant now = Instant.now();
     X509Cert caDhCert = new X509Cert(new Certificate.V3CertBuilder(
         new X500Name("CN=DH POP issuer"), BigInteger.ONE, now, now.plus(1, ChronoUnit.DAYS),
         new X500Name("CN=DH POP " + keySpec),
         SubjectPublicKeyInfo.fromPublicKey(caDhKp.getPublic()))
-        .build(KeyUtil.getSigner(issuerKp.getPrivate(), issuerKp.getPublic(), RND).x509Signer()));
+        .build(KeyUtil.getSigner(issuerKp.getPrivate(), issuerKp.getPublic()).x509Signer()));
 
     // the requestor: the key in the token
     P11Module module = p11Factory.getP11Module(MODULE);

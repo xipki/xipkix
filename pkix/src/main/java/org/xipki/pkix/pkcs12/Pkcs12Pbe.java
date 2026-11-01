@@ -10,8 +10,8 @@ import org.xipki.codec.asn1.crypto.PBMAC1Params;
 import org.xipki.codec.asn1.oid.NistOIDs;
 import org.xipki.codec.asn1.oid.OiwOIDs;
 import org.xipki.codec.asn1.oid.PkcsOIDs;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.pkix.asn1.pkcs12.PKCS12PBEParams;
-import org.xipki.codec.util.Arrays;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.api.AlgorithmNames;
 import org.xipki.crypto.api.CryptoApi;
@@ -25,8 +25,8 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -89,13 +89,12 @@ public final class Pkcs12Pbe {
    * @param algId the algorithm with {@link PKCS12PBEParams} as parameters.
    * @param wrongPKCS12Zero whether an empty password is converted to two zero bytes instead
    *        of an empty byte array (bug of some old implementations).
-   * @param random the random, may be null.
    * @return the initialized cipher.
    * @throws GeneralSecurityException if the algorithm is not supported.
    */
   public static Cipher createCipher(
-      int mode, char[] password, AlgorithmIdentifier algId, boolean wrongPKCS12Zero,
-      SecureRandom random) throws GeneralSecurityException {
+      int mode, char[] password, AlgorithmIdentifier algId, boolean wrongPKCS12Zero)
+      throws GeneralSecurityException {
     Object[] params = CIPHERS.get(algId.getAlgorithm());
     if (params == null) {
       throw new NoSuchAlgorithmException("unsupported PKCS#12 PBE algorithm "
@@ -120,7 +119,7 @@ public final class Pkcs12Pbe {
     byte[] key = deriveKey("SHA-1", 20, 64, pwd, salt, iterations, ID_KEY, keySize);
     byte[] iv = ivSize == 0 ? null
         : deriveKey("SHA-1", 20, 64, pwd, salt, iterations, ID_IV, ivSize);
-    Arrays.clear(pwd);
+    XiArrays.clear(pwd);
 
     String keyAlg;
     AlgorithmParameterSpec paramSpec;
@@ -131,7 +130,7 @@ public final class Pkcs12Pbe {
         byte[] key3 = new byte[24];
         System.arraycopy(key, 0, key3, 0, 16);
         System.arraycopy(key, 0, key3, 16, 8);
-        Arrays.clear(key);
+        XiArrays.clear(key);
         key = key3;
       }
       paramSpec = new IvParameterSpec(iv);
@@ -145,11 +144,11 @@ public final class Pkcs12Pbe {
 
     Cipher cipher = crypto.newCipher(transformation);
     SecretKeySpec secretKey = new SecretKeySpec(key, keyAlg);
-    Arrays.clear(key);
+    XiArrays.clear(key);
     if (paramSpec == null) {
-      cipher.init(mode, secretKey, random(random));
+      cipher.init(mode, secretKey, crypto.getSecureRandom());
     } else {
-      cipher.init(mode, secretKey, paramSpec, random(random));
+      cipher.init(mode, secretKey, paramSpec, crypto.getSecureRandom());
     }
     return cipher;
   }
@@ -183,7 +182,7 @@ public final class Pkcs12Pbe {
     int digestLen = (int) params[2];
     byte[] key = deriveKey((String) params[0], digestLen, (int) params[3],
         pwd, salt, itCount, ID_MAC, digestLen);
-    Arrays.clear(pwd);
+    XiArrays.clear(pwd);
     return hmac((String) params[1], key, data);
   }
 
@@ -223,7 +222,7 @@ public final class Pkcs12Pbe {
       throws GeneralSecurityException {
     Mac mac = crypto.newMac(hmacName);
     mac.init(new SecretKeySpec(key, hmacName));
-    Arrays.clear(key);
+    XiArrays.clear(key);
     return mac.doFinal(data);
   }
 
@@ -265,14 +264,14 @@ public final class Pkcs12Pbe {
     MessageDigest md = crypto.newMessageDigest(digestName);
 
     byte[] d = new byte[v];
-    java.util.Arrays.fill(d, (byte) id);
+    Arrays.fill(d, (byte) id);
 
     byte[] s = fill(salt, v);
     byte[] p = fill(pwd, v);
     byte[] i = new byte[s.length + p.length];
     System.arraycopy(s, 0, i, 0, s.length);
     System.arraycopy(p, 0, i, s.length, p.length);
-    Arrays.clear(p);
+    XiArrays.clear(p);
 
     int c = (n + u - 1) / u;
     byte[] result = new byte[n];
@@ -309,7 +308,7 @@ public final class Pkcs12Pbe {
       }
     }
 
-    Arrays.clear(i);
+    XiArrays.clear(i);
     return result;
   }
 
@@ -324,10 +323,6 @@ public final class Pkcs12Pbe {
       res[j] = input[j % input.length];
     }
     return res;
-  }
-
-  private static SecureRandom random(SecureRandom random) {
-    return crypto.getSecureRandom(random);
   }
 
 }

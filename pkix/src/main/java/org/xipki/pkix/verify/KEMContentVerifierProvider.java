@@ -8,8 +8,8 @@ import org.xipki.codec.asn1.GenerationException;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
 import org.xipki.codec.asn1.oid.XipkiOIDs;
-import org.xipki.pkix.asn1.util.ContentVerifier;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
+import org.xipki.codec.crypto.ContentVerifier;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SignatureException;
+import java.time.Instant;
 
 /**
  * KEMContent Verifier Provider.
@@ -96,8 +97,8 @@ public class KEMContentVerifierProvider implements ContentVerifierProvider {
   }
 
   @Override
-  public Certificate getAssociatedCertificate() {
-    return null;
+  public boolean isAssociatedCertificateValidOn(Instant time) {
+    return false;
   }
 
   @Override

@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.xipki.codec.asn1.GenerationException;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.codec.json.JsonMap;
+import org.xipki.codec.util.ReflectiveUtil;
 import org.xipki.pkix.pkcs11.P11CryptServiceFactory;
 import org.xipki.pkix.pkcs11.P11SignerFactory;
 import org.xipki.pkix.pkcs11.P11SystemConf;
@@ -16,7 +17,6 @@ import org.xipki.pkix.sign.SignerFactory;
 import org.xipki.pkix.sign.SignerFactoryRegister;
 import org.xipki.codec.exception.InvalidConfException;
 import org.xipki.pkix.util.misc.CollectionUtil;
-import org.xipki.pkix.util.misc.ReflectiveUtil;
 import org.xipki.pkix.util.conf.FileOrValue;
 
 import java.io.Closeable;
@@ -35,10 +35,6 @@ public class Securities implements Closeable {
    */
   public static class SecurityConf {
 
-    private boolean keyStrongrandomEnabled;
-
-    private boolean signStrongrandomEnabled;
-
     private int defaultSignerParallelism = 32;
 
     private FileOrValue pkcs11Conf;
@@ -52,22 +48,6 @@ public class Securities implements Closeable {
 
     static {
       DEFAULT = new SecurityConf();
-    }
-
-    public boolean isKeyStrongrandomEnabled() {
-      return keyStrongrandomEnabled;
-    }
-
-    public void setKeyStrongrandomEnabled(boolean keyStrongrandomEnabled) {
-      this.keyStrongrandomEnabled = keyStrongrandomEnabled;
-    }
-
-    public boolean isSignStrongrandomEnabled() {
-      return signStrongrandomEnabled;
-    }
-
-    public void setSignStrongrandomEnabled(boolean signStrongrandomEnabled) {
-      this.signStrongrandomEnabled = signStrongrandomEnabled;
     }
 
     public int defaultSignerParallelism() {
@@ -96,16 +76,6 @@ public class Securities implements Closeable {
 
     public static SecurityConf parse(JsonMap json) throws CodecException {
       SecurityConf ret = new SecurityConf();
-
-      Boolean b = json.getBool("keyStrongrandomEnabled");
-      if (b != null) {
-        ret.setKeyStrongrandomEnabled(b);
-      }
-
-      b = json.getBool("signStrongrandomEnabled");
-      if (b != null) {
-        ret.setSignStrongrandomEnabled(b);
-      }
 
       Integer i = json.getInt("defaultSignerParallelism");
       if (i != null) {
@@ -165,8 +135,6 @@ public class Securities implements Closeable {
       throws InvalidConfException {
     securityFactory = new SecurityFactoryImpl();
 
-    securityFactory.setStrongRandom4SignEnabled(conf.isSignStrongrandomEnabled());
-    securityFactory.setStrongRandom4KeyEnabled(conf.isKeyStrongrandomEnabled());
     securityFactory.setDefaultSignerParallelism(conf.defaultSignerParallelism());
 
     //----- Factories

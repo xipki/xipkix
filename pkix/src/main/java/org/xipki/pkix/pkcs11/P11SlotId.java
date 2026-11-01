@@ -4,7 +4,7 @@
 package org.xipki.pkix.pkcs11;
 
 import org.xipki.codec.util.Args;
-import org.xipki.pkix.util.misc.StringUtil;
+import org.xipki.codec.util.StringUtil;
 
 /**
  * P11 Slot Id.

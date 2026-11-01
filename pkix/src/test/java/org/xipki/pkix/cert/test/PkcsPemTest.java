@@ -7,8 +7,12 @@ import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.junit.Assert;
 import org.junit.Test;
+import org.xipki.codec.asn1.crypto.PBES2Parameters;
+import org.xipki.codec.asn1.crypto.PBKDF2Params;
 import org.xipki.codec.asn1.crypto.PrivateKeyInfo;
 import org.xipki.codec.asn1.crypto.EncryptedPrivateKeyInfo;
+import org.xipki.codec.asn1.oid.NistOIDs;
+import org.xipki.codec.asn1.oid.PkcsOIDs;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.crypto.core.pem.PemHeader;
 import org.xipki.crypto.core.pem.PemObject;
@@ -90,7 +94,15 @@ public class PkcsPemTest {
     for (TestUtil.KeyAndCert kc : new TestUtil.KeyAndCert[]{TestUtil.rsa(), TestUtil.ec()}) {
       PrivateKey key = kc.keyPair.getPrivate();
       EncryptedPrivateKeyInfo encKey = PKCS8Encryptor.encrypt(
-          PrivateKeyInfo.fromPrivateKey(key), PASSWORD, null);
+          PrivateKeyInfo.fromPrivateKey(key), PASSWORD);
+      // PBES2 with PBKDF2-HMAC-SHA256 and AES-256-CBC
+      Assert.assertEquals(PkcsOIDs.id_PBES2, encKey.getEncryptionAlgorithm().getAlgorithm());
+      PBES2Parameters params = PBES2Parameters.fromAsn1(
+          encKey.getEncryptionAlgorithm().getParameters().asSequence());
+      Assert.assertEquals(NistOIDs.id_aes256_CBC, params.getEncryptionScheme().getAlgorithm());
+      Assert.assertEquals(PkcsOIDs.id_PBKDF2, params.getKeyDerivationFunc().getAlgorithm());
+      Assert.assertEquals(PkcsOIDs.id_hmacWithSHA256, PBKDF2Params.fromAsn1(
+          params.getKeyDerivationFunc().getParameters().asSequence()).getPrf().getAlgorithm());
 
       // BouncyCastle decrypts it, as OpenSSL does
       PKCS8EncryptedPrivateKeyInfo bcInfo = new PKCS8EncryptedPrivateKeyInfo(encKey.getEncoded());

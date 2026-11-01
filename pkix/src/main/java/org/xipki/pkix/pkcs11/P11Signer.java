@@ -7,8 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.DigestOutputStream;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.crypto.core.KeyInfoUtil;
-import org.xipki.pkix.asn1.util.ContentSigner;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.pkcs11.wrapper.Functions;
@@ -22,10 +24,10 @@ import org.xipki.crypto.core.XiSecurityException;
 import org.xipki.pkix.sign.KemHmacSigner;
 import org.xipki.pkix.sign.Signer;
 import org.xipki.pkix.sign.SignerConf;
-import org.xipki.pkix.util.DigestOutputStream;
 import org.xipki.crypto.core.EcCurveEnum;
 import org.xipki.crypto.core.Pkcs1Util;
 import org.xipki.pkix.util.misc.LogUtil;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -34,9 +36,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigInteger;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.SignatureException;
 import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECPoint;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -68,18 +70,16 @@ abstract class P11Signer implements Signer {
 
   static P11Signer newInstance(
       SecurityFactory securityFactory, P11Key identity, SignerConf conf,
-      SignAlgo signAlgo, SecureRandom random, PublicKey publicKey)
-      throws XiSecurityException {
-    return newInstance(securityFactory, identity, conf, signAlgo, random, publicKey, null);
+      SignAlgo signAlgo, PublicKey publicKey) throws XiSecurityException {
+    return newInstance(securityFactory, identity, conf, signAlgo, publicKey, null);
   }
 
   static P11Signer newInstance(
       SecurityFactory securityFactory, P11Key identity, SignerConf conf,
-      SignAlgo signAlgo, SecureRandom random, PublicKey publicKey, byte[] context)
-      throws XiSecurityException {
+      SignAlgo signAlgo, PublicKey publicKey, byte[] context) throws XiSecurityException {
     long keyType = identity.key().id().getKeyType();
     if (keyType == CKK_RSA) {
-      return signAlgo.isRSAPSSSigAlgo() ? new RSAPSS(identity, signAlgo, random)
+      return signAlgo.isRSAPSSSigAlgo() ? new RSAPSS(identity, signAlgo)
           : new RSAPkcs1v1_5(identity, signAlgo);
     } else if (keyType == CKK_EC || keyType == CKK_VENDOR_SM2) {
       boolean isSm2p256v1 = (keyType == CKK_VENDOR_SM2) || EcCurveEnum.SM2 == identity.ecParams();
@@ -91,7 +91,7 @@ abstract class P11Signer implements Signer {
                   "SM2 signer needs public key, but could not get anyone."));
         }
 
-        java.security.spec.ECPoint w = ((ECPublicKey) publicKey).getW();
+        ECPoint w = ((ECPublicKey) publicKey).getW();
         return new SM2(identity, signAlgo, w.getAffineX(), w.getAffineY());
       } else {
         return new ECDSA(identity, signAlgo);
@@ -126,8 +126,7 @@ abstract class P11Signer implements Signer {
       } catch (CodecException e) {
         throw new XiSecurityException("could not parse encoded PublicKey", e);
       }
-      KemEncapKey encapKey = securityFactory.csrControl().generateKemEncapKey(
-          publicKeyInfo, securityFactory.random4Sign());
+      KemEncapKey encapKey = securityFactory.csrControl().generateKemEncapKey(publicKeyInfo);
       return new P11KemHmacSigner(identity, signAlgo, encapKey);
     } else if (keyType == CKK_AES || keyType == CKK_GENERIC_SECRET) {
       return new Mac(identity, signAlgo);
@@ -602,7 +601,7 @@ abstract class P11Signer implements Signer {
         } else {
           byte[] hashValue = ((DigestOutputStream) outputStream).digest();
           ((DigestOutputStream) outputStream).reset();
-          dataToSign = org.xipki.codec.util.Arrays.concatenate(digestPkcsPrefix, hashValue);
+          dataToSign = XiArrays.concatenate(digestPkcsPrefix, hashValue);
         }
 
         try {
@@ -627,7 +626,7 @@ abstract class P11Signer implements Signer {
             HashAlgo hashAlgo = signAlgo.hashAlgo();
             assert hashAlgo != null;
             byte[] hashValue = hashAlgo.hash(dataToSign);
-            dataToHsm = org.xipki.codec.util.Arrays.concatenate(digestPkcsPrefix, hashValue);
+            dataToHsm = XiArrays.concatenate(digestPkcsPrefix, hashValue);
           }
 
           if (mechanism == CKM_RSA_X_509) {
@@ -665,19 +664,16 @@ abstract class P11Signer implements Signer {
 
     private final P11Params.P11RSAPkcsPssParams parameters;
 
-    private final SecureRandom random;
-
     private final OutputStream outputStream;
 
     private final MyX509Signer x509Signer;
 
-    RSAPSS(P11Key identity, SignAlgo signAlgo, SecureRandom random) throws XiSecurityException {
+    RSAPSS(P11Key identity, SignAlgo signAlgo) throws XiSecurityException {
       super(identity, signAlgo);
       if (!signAlgo.isRSAPSSSigAlgo()) {
         throw new XiSecurityException("not an RSA PSS algorithm: " + signAlgo);
       }
 
-      this.random = Args.notNull(random, "random");
       HashAlgo hashAlgo = signAlgo.hashAlgo();
 
       long mech = Optional.ofNullable(algoMechMap.get(signAlgo))
@@ -753,8 +749,8 @@ abstract class P11Signer implements Signer {
             byte[] hashValue = ((DigestOutputStream) outputStream).digest();
             byte[] encodedHashValue;
             try {
-              encodedHashValue = Pkcs1Util.EMSA_PSS_ENCODE(hash, hashValue,
-                  hash, hash.length(), identity.key().rsaModulus().bitLength(), random);
+              encodedHashValue = Pkcs1Util.EMSA_PSS_ENCODE(hash, hashValue, hash, hash.length(),
+                  identity.key().rsaModulus().bitLength(), RandomUtil.random());
             } catch (XiSecurityException ex) {
               throw new SignatureException("XiSecurityException: " + ex.getMessage(), ex);
             }
@@ -785,8 +781,8 @@ abstract class P11Signer implements Signer {
 
             byte[] encodedHashValue;
             try {
-              encodedHashValue = Pkcs1Util.EMSA_PSS_ENCODE(hash, hashValue,
-                  hash, hash.length(), identity.key().rsaModulus().bitLength(), random);
+              encodedHashValue = Pkcs1Util.EMSA_PSS_ENCODE(hash, hashValue, hash, hash.length(),
+                  identity.key().rsaModulus().bitLength(), RandomUtil.random());
             } catch (XiSecurityException ex) {
               throw new SignatureException("XiSecurityException: " + ex.getMessage(), ex);
             }

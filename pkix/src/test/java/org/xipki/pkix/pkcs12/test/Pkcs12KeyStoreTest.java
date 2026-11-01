@@ -12,6 +12,7 @@ import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.junit.Assert;
 import org.junit.Test;
+import org.xipki.crypto.core.XiSecurityException;
 import org.xipki.pkix.asn1.cms.ContentInfo;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.crypto.PrivateKeyInfo;
@@ -26,10 +27,13 @@ import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.codec.asn1.crypto.DigestInfo;
 import org.xipki.codec.asn1.Asn1OctetString;
 import org.xipki.codec.Hex;
+import org.xipki.pkix.cert.X509Cert;
+import org.xipki.pkix.cert.test.TestUtil;
+import org.xipki.pkix.pkcs12.KeypairWithCert;
 import org.xipki.pkix.pkcs12.Pkcs12KeyStore;
 import org.xipki.pkix.pkcs12.Pkcs12Pbe;
-import org.xipki.pkix.cert.test.TestUtil;
 import org.xipki.pkix.util.PKCS8Encryptor;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -43,6 +47,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.spec.ECGenParameterSpec;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -61,7 +66,7 @@ public class Pkcs12KeyStoreTest {
 
   private static final char[] PWD_1234 = "1234".toCharArray();
 
-  private static final SecureRandom RND = new SecureRandom();
+  private static final SecureRandom RND = RandomUtil.random();
 
   // ---------------------------------------------------------------- reading
 
@@ -233,7 +238,7 @@ public class Pkcs12KeyStoreTest {
     }
 
     try {
-      ks.setKeyEntry("k", key, java.util.Arrays.asList(rsa.cert, null));
+      ks.setKeyEntry("k", key, Arrays.asList(rsa.cert, null));
       Assert.fail("KeyStoreException expected for chain with null element");
     } catch (KeyStoreException e) {
       // expected
@@ -309,18 +314,18 @@ public class Pkcs12KeyStoreTest {
   @Test
   public void testKeypairWithCertForKeyWithoutCertificate() throws Exception {
     Pkcs12KeyStore ks = load("openssl/nocerts.p12", PWD_1234);
-    org.xipki.pkix.cert.X509Cert eeCert = new org.xipki.pkix.cert.X509Cert(
+    X509Cert eeCert = new X509Cert(
         Certificate.fromEncoded(read("openssl/ee-cert.der")));
 
-    org.xipki.pkix.pkcs12.KeypairWithCert kp =
-        org.xipki.pkix.pkcs12.KeypairWithCert.fromKeystore(ks, "keyonly", PWD_1234,
-            new org.xipki.pkix.cert.X509Cert[]{eeCert});
+    KeypairWithCert kp =
+        KeypairWithCert.fromKeystore(ks, "keyonly", PWD_1234,
+            new X509Cert[]{eeCert});
     Assert.assertEquals(eeCert, kp.x509CertChain()[0]);
 
     try {
-      org.xipki.pkix.pkcs12.KeypairWithCert.fromKeystore(ks, "keyonly", PWD_1234, null);
+      KeypairWithCert.fromKeystore(ks, "keyonly", PWD_1234, null);
       Assert.fail("XiSecurityException expected");
-    } catch (org.xipki.crypto.core.XiSecurityException e) {
+    } catch (XiSecurityException e) {
       Assert.assertTrue(e.getMessage(), e.getMessage().contains("no certificate for key"));
     }
   }
@@ -445,7 +450,7 @@ public class Pkcs12KeyStoreTest {
     List<SafeBag> bags = new ArrayList<>();
     for (byte[] key : keys) {
       bags.add(new SafeBag(PkcsOIDs.pkcs8ShroudedKeyBag,
-          PKCS8Encryptor.encrypt(PrivateKeyInfo.fromEncoded(key), password, null)
+          PKCS8Encryptor.encrypt(PrivateKeyInfo.fromEncoded(key), password)
               .toAsn1Primitive()));
     }
 

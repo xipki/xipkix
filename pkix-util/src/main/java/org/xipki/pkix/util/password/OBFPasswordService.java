@@ -4,7 +4,7 @@
 package org.xipki.pkix.util.password;
 
 import org.xipki.codec.util.Args;
-import org.xipki.pkix.util.misc.StringUtil;
+import org.xipki.codec.util.StringUtil;
 
 import java.nio.charset.StandardCharsets;
 

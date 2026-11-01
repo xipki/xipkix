@@ -3,9 +3,9 @@ package org.xipki.pkix.asn1.x509;
 
 import org.xipki.codec.asn1.*;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
-import org.xipki.pkix.asn1.util.ContentSigner;
-import org.xipki.pkix.asn1.util.ContentVerifier;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.ContentVerifier;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.pkix.asn1.x500.X500Name;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;

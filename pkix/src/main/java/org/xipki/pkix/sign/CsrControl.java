@@ -6,6 +6,7 @@ package org.xipki.pkix.sign;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.codec.json.JsonMap;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.crypto.core.KemUtil;
 import org.xipki.crypto.core.KemEncapKey;
 import org.xipki.crypto.core.XiSecurityException;
@@ -16,7 +17,6 @@ import org.xipki.pkix.util.X509Util;
 import org.xipki.codec.exception.InvalidConfException;
 import org.xipki.pkix.util.conf.KeystoreConf;
 import org.xipki.pkix.util.conf.FileOrValue;
-import org.xipki.pkix.util.misc.StringUtil;
 import org.xipki.pkix.util.password.PasswordResolverException;
 import org.xipki.pkix.util.password.Passwords;
 
@@ -27,7 +27,6 @@ import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyStore;
-import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -119,13 +118,13 @@ public class CsrControl {
     return peerCerts;
   }
 
-  public KemEncapKey generateKemEncapKey(SubjectPublicKeyInfo publicKey, SecureRandom rnd)
+  public KemEncapKey generateKemEncapKey(SubjectPublicKeyInfo publicKey)
       throws XiSecurityException {
     if (defaultKemMasterKey == null) {
       return null;
     }
 
-    return KemUtil.generateKemEncapKey(publicKey, defaultKemMasterKey, rnd);
+    return KemUtil.generateKemEncapKey(publicKey, defaultKemMasterKey);
   }
 
   /**

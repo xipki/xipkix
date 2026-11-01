@@ -12,9 +12,6 @@ import java.security.GeneralSecurityException;
  */
 public class PasswordResolverException extends GeneralSecurityException {
 
-  public PasswordResolverException() {
-  }
-
   public PasswordResolverException(String message) {
     super(message);
   }

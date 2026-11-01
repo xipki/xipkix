@@ -10,6 +10,7 @@ import org.xipki.codec.asn1.Asn1Primitive;
 import org.xipki.codec.asn1.Asn1Sequence;
 import org.xipki.codec.asn1.Asn1Utf8String;
 import org.xipki.codec.asn1.OperatorException;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.pkix.asn1.cmp.InfoTypeAndValue;
 import org.xipki.pkix.asn1.cmp.PBMParameter;
 import org.xipki.pkix.asn1.cmp.PKIFailureInfo;
@@ -35,10 +36,11 @@ import org.xipki.pkcs11.wrapper.Functions;
 import org.xipki.crypto.core.HashAlgo;
 import org.xipki.pkix.exception.NoIdleSignerException;
 import org.xipki.crypto.core.XiSecurityException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.pkix.sign.ConcurrentSigner;
 import org.xipki.pkix.sign.Signer;
 import org.xipki.crypto.core.WeierstraussCurveEnum;
-import org.xipki.pkix.util.misc.StringUtil;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -97,7 +99,7 @@ public class CmpUtil {
   public static PKIMessage addProtection(
       PKIMessage pkiMessage, ConcurrentSigner signer,
       GeneralName signerName, boolean addSignerCert)
-      throws CmpException, NoIdleSignerException {
+      throws PkixException, NoIdleSignerException {
     Args.notNull(pkiMessage, "pkiMessage");
     Args.notNull(signer, "signer");
 
@@ -131,7 +133,7 @@ public class CmpUtil {
 
   public static PKIMessage addProtection(
       PKIMessage pkiMessage, char[] password, PBMParameter pbmParameter,
-      GeneralName signerName, byte[] senderKid) throws CmpException {
+      GeneralName signerName, byte[] senderKid) throws PkixException {
     ProtectedPKIMessage.Builder builder =
         newProtectedPKIMessageBuilder(pkiMessage, signerName, senderKid);
 
@@ -260,9 +262,9 @@ public class CmpUtil {
   }
 
   public static byte[] wrapCrmfContentEncryptionKey(
-      byte[] keyToWrap, ECPublicKey publicKey, SecureRandom rnd)
-      throws OperatorException {
+      byte[] keyToWrap, ECPublicKey publicKey) throws OperatorException {
     try {
+      SecureRandom rnd = RandomUtil.random();
       byte[] gcmIv = new byte[12];
       rnd.nextBytes(gcmIv);
       WeierstraussCurveEnum curveEnum = curveOf(publicKey.getParams());

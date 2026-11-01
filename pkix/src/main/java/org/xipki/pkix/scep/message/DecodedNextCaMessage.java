@@ -18,7 +18,7 @@ import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.core.HashAlgo;
 import org.xipki.crypto.core.SignAlgo;
-import org.xipki.pkix.cms.CmsException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.pkix.cms.CmsSignedData;
 import org.xipki.pkix.cms.CmsSigner;
 import org.xipki.pkix.cert.X509Cert;
@@ -153,7 +153,7 @@ public class DecodedNextCaMessage {
     boolean signatureValid;
     try {
       signatureValid = ScepUtil.verifySignature(signerInfo, signerX509Cert);
-    } catch (CmsException ex) {
+    } catch (PkixException ex) {
       final String msg = "could not verify the signature";
       LogUtil.error(LOG, ex, msg);
       ret.setFailureMessage(msg + ": " +  ex.getMessage());

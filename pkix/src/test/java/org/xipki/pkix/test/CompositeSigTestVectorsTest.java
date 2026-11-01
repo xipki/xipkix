@@ -10,13 +10,15 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.xipki.codec.asn1.crypto.PrivateKeyInfo;
 import org.xipki.codec.asn1.crypto.SubjectPublicKeyInfo;
+import org.xipki.codec.crypto.ContentVerifier;
+import org.xipki.codec.util.XiArrays;
 import org.xipki.crypto.core.KeyInfoUtil;
-import org.xipki.pkix.asn1.util.ContentVerifier;
 import org.xipki.crypto.api.CryptoApi;
 import org.xipki.crypto.api.CryptoApiFactory;
 import org.xipki.codec.json.JsonList;
 import org.xipki.codec.json.JsonMap;
 import org.xipki.codec.json.JsonParser;
+import org.xipki.crypto.core.KeySpec;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.crypto.core.composite.CompositeMLDSAPrivateKey;
 import org.xipki.crypto.core.composite.CompositeMLDSAPublicKey;
@@ -25,6 +27,7 @@ import org.xipki.crypto.core.composite.CompositeSigUtil;
 import org.xipki.pkix.cert.X509Cert;
 import org.xipki.pkix.util.KeyUtil;
 import org.xipki.pkix.util.X509Util;
+import org.xipki.pkix.util.misc.RandomUtil;
 
 import java.io.InputStream;
 import java.security.KeyPair;
@@ -32,6 +35,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
+import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -52,7 +56,7 @@ public class CompositeSigTestVectorsTest {
 
   private static final String RESOURCE = "/composite-sigs/draft-19-testvectors.json";
 
-  private static final SecureRandom RND = new SecureRandom();
+  private static final SecureRandom RND = RandomUtil.random();
 
   private static final byte[] M;
 
@@ -119,7 +123,7 @@ public class CompositeSigTestVectorsTest {
   private static boolean mldsaContextSupported() {
     CryptoApi api = CryptoApiFactory.get();
     try {
-      KeyPair kp = KeyUtil.generateKeyPair(org.xipki.crypto.core.KeySpec.MLDSA44, RND);
+      KeyPair kp = KeyUtil.generateKeyPair(KeySpec.MLDSA44);
       Signature sig = api.newSignature("ML-DSA-44");
       sig.initSign(kp.getPrivate());
       api.setContext(sig, new byte[]{1});
@@ -173,7 +177,7 @@ public class CompositeSigTestVectorsTest {
       Assert.assertArrayEquals(tcId + ": getEncoded()", skPkcs8, csk.getEncoded());
     } else {
       // ML-DSA: sk is the seed, sk_pkcs8 the seed [0] choice of RFC 9881
-      byte[] expected = org.xipki.codec.util.Arrays.concatenate(
+      byte[] expected = XiArrays.concatenate(
           new byte[]{(byte) 0x80, (byte) sk.length}, sk);
       Assert.assertArrayEquals(tcId + ": sk in sk_pkcs8", expected, skInfo.privateKey());
       Assert.assertNotNull(KeyInfoUtil.getPrivateKey(skInfo));
@@ -241,7 +245,7 @@ public class CompositeSigTestVectorsTest {
     PublicKey publicKey = cert().publicKey();
 
     // the Signer of xipki, empty ctx
-    byte[] sig = KeyUtil.getSigner(privateKey, publicKey, RND).x509Sign(M);
+    byte[] sig = KeyUtil.getSigner(privateKey, publicKey).x509Sign(M);
     Assert.assertTrue(tcId + ": new signature", verify(publicKey, null, sig));
 
     if (MLDSA_CONTEXT_SUPPORTED) {
@@ -292,7 +296,7 @@ public class CompositeSigTestVectorsTest {
       api.setContext(sig, context);
       sig.update(M);
       return sig.verify(signature);
-    } catch (java.security.SignatureException e) {
+    } catch (SignatureException e) {
       return false;
     }
   }
@@ -316,17 +320,17 @@ public class CompositeSigTestVectorsTest {
     byte[] mPrime = CompositeSigUtil.buildM_(suite, ctx, suite.ph().hash(M));
 
     Signature sig = api.newSignature(suite.pqcVariant().signAlgo().jceName());
-    KeyUtil.initSign(sig, csk.pqcKey(), RND);
+    KeyUtil.initSign(sig, csk.pqcKey());
     KeyInfoUtil.setContext(sig, suite.label());
     sig.update(mPrime);
     byte[] pqcSig = sig.sign();
 
     sig = api.newSignature(suite.tradVariant().signAlgo().jceName());
-    KeyUtil.initSign(sig, csk.tradKey(), RND);
+    KeyUtil.initSign(sig, csk.tradKey());
     sig.update(mPrime);
     byte[] tradSig = sig.sign();
 
-    return org.xipki.codec.util.Arrays.concatenate(pqcSig, tradSig);
+    return XiArrays.concatenate(pqcSig, tradSig);
   }
 
   @Test

@@ -6,17 +6,17 @@ package org.xipki.pkix.scep.message;
 import org.xipki.codec.asn1.Asn1Encodable;
 import org.xipki.codec.asn1.Asn1Oid;
 import org.xipki.codec.asn1.Asn1Primitive;
+import org.xipki.codec.crypto.ContentSigner;
 import org.xipki.pkix.asn1.cms.Attributes;
 import org.xipki.pkix.asn1.cms.ContentInfo;
 import org.xipki.codec.asn1.oid.AttributeOIDs;
 import org.xipki.codec.asn1.oid.CmsOIDs;
-import org.xipki.pkix.asn1.util.ContentSigner;
 import org.xipki.pkix.asn1.x509.Attribute;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
 import org.xipki.crypto.core.SignAlgo;
 import org.xipki.pkix.cms.CmsEnvelopedData;
-import org.xipki.pkix.cms.CmsException;
+import org.xipki.pkix.exception.PkixException;
 import org.xipki.pkix.cms.CmsSignedData;
 import org.xipki.crypto.core.XiSecurityException;
 import org.xipki.pkix.cert.X509Cert;
@@ -241,14 +241,14 @@ public class PkiMessage {
       ScepUtil.addCmsCertSet(builder, cmsCertSet);
 
       return builder.build().toASN1Structure();
-    } catch (CmsException ex) {
+    } catch (PkixException ex) {
       throw new CodecException(ex);
     }
   } // method encode
 
   // TODO: use password based encryption for not-encryptable public key.
   private CmsEnvelopedData encrypt(X509Cert recipient, Asn1Oid encAlgId)
-      throws CmsException {
+      throws PkixException {
     return new CmsEnvelopedData.Builder()
         .addKeyTransRecipient(recipient.getCert())
         .build(encAlgId, messageData.getEncoded());

@@ -4,15 +4,16 @@
 package org.xipki.pkix.cmp;
 
 import org.xipki.codec.asn1.Asn1Encodable;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.ContentVerifier;
+import org.xipki.codec.crypto.ContentVerifierProvider;
 import org.xipki.pkix.asn1.crmf.CertReqMsg;
 import org.xipki.pkix.asn1.crmf.CertRequest;
 import org.xipki.pkix.asn1.crmf.CertTemplate;
 import org.xipki.pkix.asn1.crmf.POPOSigningKey;
 import org.xipki.pkix.asn1.crmf.ProofOfPossession;
-import org.xipki.pkix.asn1.util.ContentSigner;
-import org.xipki.pkix.asn1.util.ContentVerifier;
-import org.xipki.pkix.asn1.util.ContentVerifierProvider;
 import org.xipki.codec.util.Args;
+import org.xipki.pkix.exception.PkixException;
 
 import java.security.SignatureException;
 
@@ -54,10 +55,10 @@ public class CertificateRequestMessage {
    * contains the sender (RFC 4211, section 4.1).
    * @param verifierProvider the provider of the signature verifier.
    * @return true if the signature is valid, false otherwise.
-   * @throws CmpException if the signature cannot be verified.
+   * @throws PkixException if the signature cannot be verified.
    */
   public boolean isValidSigningKeyPOP(ContentVerifierProvider verifierProvider)
-      throws CmpException {
+      throws PkixException {
     ProofOfPossession pop = certReqMsg.getPop();
     if (pop.getTagNo() != tag_popSigningKey) {
       throw new IllegalStateException("not Signing Key type of proof of possession");
@@ -78,7 +79,7 @@ public class CertificateRequestMessage {
       ContentVerifier verifier = verifierProvider.get(popoSign.getAlgorithmIdentifier());
       return verifier.atomicVerify(signed.getEncoded(), popoSign.signature());
     } catch (Exception e) {
-      throw new CmpException("error verifying the signature: " + e.getMessage(), e);
+      throw new PkixException("error verifying the signature: " + e.getMessage(), e);
     }
   }
 
@@ -88,17 +89,17 @@ public class CertificateRequestMessage {
    * @param certRequest the certificate request.
    * @param signer the signer with the private key of the requested certificate.
    * @return the proof of possession.
-   * @throws CmpException if the signature cannot be calculated.
+   * @throws PkixException if the signature cannot be calculated.
    */
   public static POPOSigningKey buildSigningKeyPop(CertRequest certRequest, ContentSigner signer)
-      throws CmpException {
+      throws PkixException {
     Args.notNull(certRequest, "certRequest");
     Args.notNull(signer, "signer");
     try {
       byte[] signature = signer.atomicSign(certRequest.getEncoded());
       return new POPOSigningKey(null, signer.getAlgorithmIdentifier(), signature);
     } catch (SignatureException e) {
-      throw new CmpException("error signing: " + e.getMessage(), e);
+      throw new PkixException("error signing: " + e.getMessage(), e);
     }
   }
 

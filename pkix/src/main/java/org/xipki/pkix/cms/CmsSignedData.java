@@ -6,15 +6,16 @@ package org.xipki.pkix.cms;
 import org.xipki.codec.asn1.Asn1OctetString;
 import org.xipki.codec.asn1.Asn1Oid;
 import org.xipki.codec.asn1.Asn1Primitive;
+import org.xipki.codec.crypto.ContentSigner;
 import org.xipki.pkix.asn1.cms.*;
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.oid.CmsOIDs;
-import org.xipki.pkix.asn1.util.ContentSigner;
 import org.xipki.pkix.asn1.x509.Attribute;
 import org.xipki.pkix.asn1.x509.Certificate;
 import org.xipki.pkix.asn1.x509.CertificateList;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
+import org.xipki.pkix.exception.PkixException;
 
 import java.security.SignatureException;
 import java.time.Instant;
@@ -41,21 +42,21 @@ public class CmsSignedData {
 
   private final List<CmsSigner> signers;
 
-  public CmsSignedData(byte[] encoded) throws CmsException {
+  public CmsSignedData(byte[] encoded) throws PkixException {
     this(parseContentInfo(encoded));
   }
 
-  public CmsSignedData(ContentInfo contentInfo) throws CmsException {
+  public CmsSignedData(ContentInfo contentInfo) throws PkixException {
     this.contentInfo = Args.notNull(contentInfo, "contentInfo");
     if (!CmsOIDs.signedData.equals(contentInfo.getContentType())) {
-      throw new CmsException("content type is not id-signedData, but "
+      throw new PkixException("content type is not id-signedData, but "
           + contentInfo.getContentType().getId());
     }
 
     try {
       this.signedData = SignedData.fromAsn1(contentInfo.getContent().asSequence());
     } catch (CodecException | RuntimeException e) {
-      throw new CmsException("malformed SignedData: " + e.getMessage(), e);
+      throw new PkixException("malformed SignedData: " + e.getMessage(), e);
     }
 
     ContentInfo encapContentInfo = signedData.getEncapContentInfo();
@@ -76,11 +77,11 @@ public class CmsSignedData {
     this.signers = Collections.unmodifiableList(list);
   }
 
-  private static ContentInfo parseContentInfo(byte[] encoded) throws CmsException {
+  private static ContentInfo parseContentInfo(byte[] encoded) throws PkixException {
     try {
       return ContentInfo.fromEncoded(Args.notNull(encoded, "encoded"));
     } catch (CodecException | RuntimeException e) {
-      throw new CmsException("malformed ContentInfo: " + e.getMessage(), e);
+      throw new PkixException("malformed ContentInfo: " + e.getMessage(), e);
     }
   }
 
@@ -214,7 +215,7 @@ public class CmsSignedData {
       return this;
     }
 
-    public CmsSignedData build() throws CmsException {
+    public CmsSignedData build() throws PkixException {
       Set<AlgorithmIdentifier> digestAlgs = new LinkedHashSet<>();
       List<SignerInfo> signerInfos = new ArrayList<>(signers.size());
       for (SignerEntry entry : signers) {
@@ -235,7 +236,7 @@ public class CmsSignedData {
       return new CmsSignedData(ContentInfo.build(CmsOIDs.signedData, signedData));
     }
 
-    private SignerInfo buildSignerInfo(SignerEntry entry) throws CmsException {
+    private SignerInfo buildSignerInfo(SignerEntry entry) throws PkixException {
       AlgorithmIdentifier sigAlg = entry.signer.getAlgorithmIdentifier();
       AlgorithmIdentifier signerInfoSigAlg = CmsCrypto.signerInfoSignatureAlgorithm(sigAlg);
 
@@ -269,7 +270,7 @@ public class CmsSignedData {
       try {
         signature = entry.signer.atomicSign(signedAttrs.getEncoded());
       } catch (SignatureException e) {
-        throw new CmsException("could not sign: " + e.getMessage(), e);
+        throw new PkixException("could not sign: " + e.getMessage(), e);
       }
 
       SignerIdentifier sid = SignerIdentifier.ofIssuerAndSerialNumber(

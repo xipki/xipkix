@@ -4,8 +4,8 @@
 package org.xipki.pkix.util;
 
 import org.xipki.codec.util.Args;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.crypto.core.HashAlgo;
-import org.xipki.pkix.util.misc.StringUtil;
 
 /**
  * Fp Id Calculator.

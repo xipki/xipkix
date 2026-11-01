@@ -5,9 +5,9 @@ package org.xipki.pkix.sign;
 
 import org.xipki.codec.asn1.crypto.AlgorithmIdentifier;
 import org.xipki.codec.asn1.oid.AlgorithmOIDs;
-import org.xipki.pkix.asn1.util.ContentSigner;
 import org.xipki.codec.Hex;
-import org.xipki.pkix.util.io.NopOutputStream;
+import org.xipki.codec.crypto.ContentSigner;
+import org.xipki.codec.crypto.NopOutputStream;
 
 import java.io.OutputStream;
 import java.security.SignatureException;

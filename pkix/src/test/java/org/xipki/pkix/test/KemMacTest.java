@@ -25,7 +25,6 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.SecureRandom;
 import java.util.Arrays;
 
 /**
@@ -49,11 +48,7 @@ public class KemMacTest {
     SubjectPublicKeyInfo myPkInfo = SubjectPublicKeyInfo.fromPublicKey(myKeyPair.getPublic());
 
     // Receiver: generates encapsulated MAC key
-    KemEncapKey kemEncapKey;
-    {
-      SecureRandom rnd = new SecureRandom();
-      kemEncapKey = KemUtil.generateKemEncapKey(myPkInfo, masterKey, rnd);
-    }
+    KemEncapKey kemEncapKey = KemUtil.generateKemEncapKey(myPkInfo, masterKey);
 
     // Sender: decrypts the mac key using private key
     byte[] macKeyBytes;

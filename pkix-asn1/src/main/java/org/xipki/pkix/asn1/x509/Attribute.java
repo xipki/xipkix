@@ -17,7 +17,6 @@ import org.xipki.pkix.asn1.tcg.Traits;
 import org.xipki.pkix.asn1.x500.DirectoryString;
 import org.xipki.codec.util.Args;
 import org.xipki.codec.exception.CodecException;
-import org.xipki.codec.exception.DuplicationException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -69,12 +68,12 @@ public class Attribute extends Asn1Encodable {
     }
 
     public Attribute getOnlyAttribute(Asn1Oid attrType)
-        throws DuplicationException {
+        throws CodecException {
       Attribute found = null;
       for (Attribute m : entries) {
         if (attrType.equals(m.attrType)) {
           if (found != null) {
-            throw new DuplicationException("duplicated attribute " + attrType);
+            throw new CodecException("duplicated attribute " + attrType);
           }
           found = m;
         }

@@ -9,6 +9,7 @@ import org.xipki.codec.asn1.Asn1Oid;
 import org.xipki.codec.asn1.Asn1PrintableString;
 import org.xipki.codec.asn1.Asn1Sequence;
 import org.xipki.codec.asn1.Asn1Utf8String;
+import org.xipki.codec.util.StringUtil;
 import org.xipki.pkix.asn1.ccc.EndpointCertificateExtensionSchema;
 import org.xipki.pkix.asn1.ccc.InstanceCACertificateExtensionSchema;
 import org.xipki.pkix.asn1.ccc.SBxDKisCertificateExtensionSchema;
@@ -45,7 +46,6 @@ import org.xipki.crypto.api.CryptoApi;
 import org.xipki.crypto.api.CryptoApiFactory;
 import org.xipki.crypto.core.HashAlgo;
 import org.xipki.codec.util.IoUtil;
-import org.xipki.pkix.util.misc.StringUtil;
 
 import java.io.IOException;
 import java.math.BigInteger;
